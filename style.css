@@ -2660,17 +2660,11 @@ cursor:pointer;
 }
 
 .calc-title{
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    gap:12px;
-
-    font-family:Orbitron;
-    font-size:52px;
+    font-size:30px;
+    gap:8px;
 }
 
 .calc-title img{
-    width:48px;
-    height:48px;
-    object-fit:contain;
+    width:30px;
+    height:30px;
 }
