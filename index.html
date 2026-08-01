@@ -396,6 +396,13 @@
         <div class="gc-empty" id="gcEmpty">Belum ada pesan. Jadi yang pertama!</div>
     </div>
     <div class="gc-name-bar" id="gcNameBar">
+        <div class="gc-profile-pick">
+            <input type="file" id="gcAvatarInput" accept="image/*" hidden>
+            <button type="button" id="gcAvatarBtn" title="Foto profil">
+                <img id="gcAvatarPreview" src="" alt="" style="display:none">
+                <i class="fa-solid fa-camera" id="gcAvatarIcon"></i>
+            </button>
+        </div>
         <input type="text" id="gcNameInput" maxlength="16" placeholder="Nama panggilan kamu..." autocomplete="off">
         <button type="button" id="gcSaveName">Masuk</button>
     </div>
@@ -408,6 +415,14 @@
             </div>
         </div>
         <button type="button" class="gc-reply-cancel" id="gcReplyCancel" title="Batal balas">×</button>
+    </div>
+    <div class="gc-pending-image" id="gcPendingImageBar" style="display:none">
+        <img id="gcPendingImagePreview" src="" alt="preview">
+        <div class="gc-pending-info">
+            <strong>Gambar siap dikirim</strong>
+            <span>Tulis pesan di bawah, lalu kirim</span>
+        </div>
+        <button type="button" class="gc-pending-cancel" id="gcPendingImageCancel" title="Batal">×</button>
     </div>
     <form class="gc-input-bar" id="gcForm" style="display:none">
         <input type="file" id="gcImageInput" accept="image/*" hidden>

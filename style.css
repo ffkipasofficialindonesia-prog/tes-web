@@ -2635,17 +2635,45 @@ GROUP CHAT ROOM
   font-size: 13px;
   padding: 24px;
 }
+.gc-msg-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  max-width: 92%;
+  align-self: flex-start;
+  animation: fadeIn 0.2s ease;
+}
+.gc-msg-row.me {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+.gc-msg-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: rgba(255, 152, 0, 0.15);
+  border: 1px solid rgba(255, 170, 0, 0.3);
+}
+.gc-msg-avatar.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffb300;
+  font-family: var(--font-tech);
+}
 .gc-msg {
-  max-width: 88%;
+  max-width: 100%;
   padding: 8px 12px;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.06);
-  align-self: flex-start;
-  animation: fadeIn 0.2s ease;
+  min-width: 0;
 }
-.gc-msg.me {
-  align-self: flex-end;
+.gc-msg-row.me .gc-msg {
   background: rgba(255, 123, 0, 0.15);
   border-color: rgba(255, 152, 0, 0.25);
 }
@@ -2660,7 +2688,7 @@ GROUP CHAT ROOM
   flex-wrap: nowrap;
   line-height: 1.2;
 }
-.gc-msg.me .gc-msg-name { color: #ffc107; }
+.gc-msg-row.me .gc-msg-name { color: #ffc107; }
 
 /* Admin badge — kecil, menempel di samping nama */
 .gc-admin-badge {
@@ -2850,10 +2878,107 @@ GROUP CHAT ROOM
   color: #ff6b6b;
 }
 
+/* Pending image + caption (WhatsApp style) */
+.gc-pending-image {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 123, 0, 0.08);
+}
+.gc-pending-image img {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 152, 0, 0.35);
+  background: #111;
+}
+.gc-pending-info {
+  flex: 1;
+  min-width: 0;
+}
+.gc-pending-info strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffb300;
+  margin-bottom: 1px;
+}
+.gc-pending-info span {
+  display: block;
+  font-size: 11.5px;
+  color: #999;
+}
+.gc-pending-cancel {
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.gc-pending-cancel:hover {
+  background: rgba(255, 80, 80, 0.2);
+  border-color: rgba(255, 80, 80, 0.4);
+  color: #ff6b6b;
+}
+
+/* Profile avatar picker */
+.gc-profile-pick {
+  flex-shrink: 0;
+}
+#gcAvatarBtn {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px dashed rgba(255, 152, 0, 0.45);
+  background: rgba(255, 152, 0, 0.08);
+  color: #ffb300;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0;
+  position: relative;
+  transition: border-color 0.2s, background 0.2s;
+}
+#gcAvatarBtn:hover {
+  border-color: rgba(255, 152, 0, 0.75);
+  background: rgba(255, 152, 0, 0.15);
+}
+#gcAvatarBtn img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}
+#gcAvatarBtn.has-avatar {
+  border-style: solid;
+  border-color: rgba(255, 152, 0, 0.55);
+}
+#gcAvatarBtn.has-avatar #gcAvatarIcon {
+  display: none;
+}
+
 .gc-name-bar,
 .gc-input-bar {
   display: flex;
   gap: 8px;
+  align-items: center;
   padding: 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.07);
   background: rgba(0, 0, 0, 0.25);
@@ -2886,6 +3011,8 @@ GROUP CHAT ROOM
   padding: 0 16px;
   cursor: pointer;
   font-family: inherit;
+  height: 42px;
+  flex-shrink: 0;
 }
 #gcImageBtn {
   width: 42px;
@@ -2911,11 +3038,14 @@ GROUP CHAT ROOM
 }
 #gcSend {
   width: 46px;
+  min-width: 46px;
+  height: 42px;
   padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 15px;
+  flex-shrink: 0;
 }
 .gc-msg-img {
   display: block;
