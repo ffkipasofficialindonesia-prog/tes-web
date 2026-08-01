@@ -196,6 +196,23 @@ function navigateToSection(sectionId, opts = {}) {
 }
 
 function applyRouteFromLocation() {
+    // GitHub Pages 404 fallback: path asli disimpan di sessionStorage
+    try {
+        const saved = sessionStorage.getItem("spa_redirect");
+        if (saved) {
+            sessionStorage.removeItem("spa_redirect");
+            const pathOnly = saved.split("?")[0].split("#")[0];
+            const sidFromSaved = sectionFromPath(pathOnly);
+            if (sidFromSaved) {
+                try {
+                    history.replaceState({ section: sidFromSaved }, "", SECTION_PATHS[sidFromSaved] || pathOnly);
+                } catch (e) {}
+                navigateToSection(sidFromSaved, { push: false, smooth: false });
+                return;
+            }
+        }
+    } catch (e) {}
+
     // hash lama → jadi path bersih
     if (location.hash && location.hash.length > 1) {
         const hid = location.hash.slice(1);
