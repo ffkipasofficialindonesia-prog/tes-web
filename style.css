@@ -2577,9 +2577,12 @@ GROUP CHAT ROOM
 }
 .gc-header-left strong {
   display: block;
-  font-size: 13.5px;
-  font-weight: 700;
-  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: #ffb300;
+  text-shadow: 0 0 12px rgba(255, 152, 0, 0.35);
 }
 .gc-header-left span {
   display: block;
@@ -2587,6 +2590,12 @@ GROUP CHAT ROOM
   color: #00c853;
   font-weight: 600;
 }
+.gc-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.gc-rename,
 .gc-close {
   width: 36px;
   height: 36px;
@@ -2594,10 +2603,17 @@ GROUP CHAT ROOM
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.05);
   color: #fff;
-  font-size: 22px;
+  font-size: 14px;
   line-height: 1;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+.gc-close {
+  font-size: 22px;
+}
+.gc-rename:hover,
 .gc-close:hover {
   background: rgba(255, 123, 0, 0.2);
   color: #ff9800;
@@ -2690,6 +2706,28 @@ GROUP CHAT ROOM
   cursor: pointer;
   font-family: inherit;
 }
+#gcImageBtn {
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffb300;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+#gcImageBtn:hover {
+  background: rgba(255, 152, 0, 0.18);
+  border-color: rgba(255, 152, 0, 0.35);
+}
+#gcImageBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 #gcSend {
   width: 46px;
   padding: 0;
@@ -2698,6 +2736,21 @@ GROUP CHAT ROOM
   justify-content: center;
   font-size: 15px;
 }
+.gc-msg-img {
+  display: block;
+  max-width: 220px;
+  max-height: 220px;
+  width: auto;
+  height: auto;
+  border-radius: 12px;
+  margin-top: 4px;
+  cursor: pointer;
+  object-fit: cover;
+}
+.gc-msg-img:hover {
+  filter: brightness(1.05);
+}
+
 #gcSaveName:hover,
 #gcSend:hover {
   filter: brightness(1.08);
@@ -2710,5 +2763,53 @@ GROUP CHAT ROOM
     width: auto;
     bottom: 88px;
     height: min(480px, calc(100vh - 110px));
+  }
+}
+
+
+/* Label di samping tombol chat */
+.chat-fab-label {
+  position: absolute;
+  right: 72px;
+  bottom: 14px;
+  background: linear-gradient(135deg, #ff7b00, #ffb100);
+  color: #111;
+  font-family: var(--font-tech);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  padding: 8px 12px;
+  border-radius: 10px;
+  white-space: nowrap;
+  box-shadow: 0 6px 20px rgba(255, 123, 0, 0.45);
+  pointer-events: none;
+  animation: fabLabelPulse 2.4s ease-in-out infinite;
+  z-index: 1;
+}
+.chat-fab-label::after {
+  content: "";
+  position: absolute;
+  right: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 6px solid transparent;
+  border-left-color: #ffb100;
+}
+.floating-chat:has(#chatToggle.active) .chat-fab-label,
+.floating-chat:has(.chat-menu.show) .chat-fab-label,
+.floating-chat:has(.group-chat-panel.show) .chat-fab-label {
+  opacity: 0;
+  visibility: hidden;
+}
+@keyframes fabLabelPulse {
+  0%, 100% { transform: translateX(0); box-shadow: 0 6px 20px rgba(255, 123, 0, 0.45); }
+  50% { transform: translateX(-3px); box-shadow: 0 8px 26px rgba(255, 123, 0, 0.6); }
+}
+@media (max-width: 420px) {
+  .chat-fab-label {
+    font-size: 10px;
+    padding: 7px 10px;
+    right: 68px;
   }
 }

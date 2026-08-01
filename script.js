@@ -979,8 +979,24 @@ if (gcSaveName) {
         if (gcNameBar) gcNameBar.style.display = "none";
         if (gcForm) gcForm.style.display = "flex";
         if (gcInput) gcInput.focus();
-        showToast("Masuk", "Halo, " + n + "!");
+        if (gcSaveName) gcSaveName.textContent = "Masuk";
+        showToast("Nama disimpan", "Halo, " + n + "!");
     };
+}
+
+
+const gcRenameBtn = document.getElementById("gcRenameBtn");
+if (gcRenameBtn) {
+    gcRenameBtn.addEventListener("click", () => {
+        if (gcNameBar) gcNameBar.style.display = "flex";
+        if (gcForm) gcForm.style.display = "none";
+        if (gcNameInput) {
+            gcNameInput.value = gcName || "";
+            gcNameInput.focus();
+            gcNameInput.select();
+        }
+        if (gcSaveName) gcSaveName.textContent = "Simpan";
+    });
 }
 
 if (gcForm) {
