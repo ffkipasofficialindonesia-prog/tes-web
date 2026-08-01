@@ -873,8 +873,6 @@ let gcAvatar = localStorage.getItem("ff_chat_avatar") || "";
 let gcLastSend = 0;
 let gcReplyTo = null; // { id, name, text, image? }
 let gcMsgCache = {};  // id -> message (untuk scroll ke pesan asli)
-let gcPendingImageFile = null;
-let gcPendingImageUrl = "";
 
 // Session unik per browser — buat klaim nama
 let gcSessionId = localStorage.getItem("ff_chat_sid") || "";
@@ -986,33 +984,6 @@ function avatarHtml(m) {
     return `<div class="gc-msg-avatar placeholder">${escapeHtml(letter)}</div>`;
 }
 
-function clearPendingImage() {
-    gcPendingImageFile = null;
-    if (gcPendingImageUrl) {
-        try { URL.revokeObjectURL(gcPendingImageUrl); } catch (e) {}
-        gcPendingImageUrl = "";
-    }
-    const bar = document.getElementById("gcPendingImageBar");
-    const preview = document.getElementById("gcPendingImagePreview");
-    if (bar) bar.style.display = "none";
-    if (preview) preview.src = "";
-    if (gcInput) gcInput.placeholder = gcReplyTo ? ("Balas " + (gcReplyTo.name || "") + "...") : "Tulis pesan...";
-}
-
-function setPendingImage(file) {
-    clearPendingImage();
-    gcPendingImageFile = file;
-    gcPendingImageUrl = URL.createObjectURL(file);
-    const bar = document.getElementById("gcPendingImageBar");
-    const preview = document.getElementById("gcPendingImagePreview");
-    if (preview) preview.src = gcPendingImageUrl;
-    if (bar) bar.style.display = "flex";
-    if (gcInput) {
-        gcInput.placeholder = "Tulis pesan untuk gambar ini...";
-        setTimeout(() => gcInput.focus(), 50);
-    }
-}
-
 /* ===========================
    ADMIN BADGE
    Tambah / ubah nama admin di array di bawah.
@@ -1060,7 +1031,6 @@ function closeGroupChat() {
     if (groupChatOverlay) groupChatOverlay.classList.remove("show");
     setChatLabelVisible(true);
     clearReply();
-    clearPendingImage();
 }
 
 if (openGroupChatBtn) {
@@ -1336,34 +1306,8 @@ if (gcRenameBtn) {
     });
 }
 
-/* Kirim gambar via ImgBB (gratis) */
-const IMGBB_API_KEY = "aeeb26ddbc98f81adde8f60ae5680595";
-
-async function uploadImageToImgBB(file) {
-    const formData = new FormData();
-    formData.append("image", file);
-    const res = await fetch("https://api.imgbb.com/1/upload?key=" + encodeURIComponent(IMGBB_API_KEY), {
-        method: "POST",
-        body: formData
-    });
-    const json = await res.json();
-    if (!json.success || !json.data || !json.data.url) {
-        throw new Error(json.error?.message || "Upload gagal");
-    }
-    return json.data.url;
-}
-
-const gcPendingImageCancel = document.getElementById("gcPendingImageCancel");
-if (gcPendingImageCancel) {
-    gcPendingImageCancel.onclick = (e) => {
-        e.preventDefault();
-        clearPendingImage();
-        if (gcInput) gcInput.focus();
-    };
-}
-
 if (gcForm) {
-    gcForm.addEventListener("submit", async (e) => {
+    gcForm.addEventListener("submit", (e) => {
         e.preventDefault();
         if (!gcReady || !gcDb) {
             showToast(
@@ -1377,10 +1321,8 @@ if (gcForm) {
             showToast("Nama", "Isi nama dulu", "warning");
             return;
         }
-
         const text = (gcInput?.value || "").trim().slice(0, 200);
-        const hasImage = !!gcPendingImageFile;
-        if (!text && !hasImage) return;
+        if (!text) return;
 
         const now = Date.now();
         if (now - gcLastSend < 1200) {
@@ -1389,51 +1331,29 @@ if (gcForm) {
         }
         gcLastSend = now;
 
-        const sendBtn = document.getElementById("gcSend");
-        const imageBtn = document.getElementById("gcImageBtn");
-        if (sendBtn) {
-            sendBtn.disabled = true;
-            sendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-        }
-        if (imageBtn) imageBtn.disabled = true;
-
-        try {
-            let imageUrl = "";
-            if (hasImage) {
-                imageUrl = await uploadImageToImgBB(gcPendingImageFile);
-            }
-
-            const payload = {
-                name: gcName,
-                text: text || "",
-                ts: Date.now()
+        const payload = {
+            name: gcName,
+            text: text,
+            ts: now
+        };
+        if (gcAvatar) payload.avatar = gcAvatar;
+        if (gcReplyTo) {
+            payload.replyTo = {
+                id: gcReplyTo.id || "",
+                name: gcReplyTo.name || "Anon",
+                text: gcReplyTo.text || "",
+                image: !!gcReplyTo.image
             };
-            if (imageUrl) payload.image = imageUrl;
-            if (gcAvatar) payload.avatar = gcAvatar;
-            if (gcReplyTo) {
-                payload.replyTo = {
-                    id: gcReplyTo.id || "",
-                    name: gcReplyTo.name || "Anon",
-                    text: gcReplyTo.text || "",
-                    image: !!gcReplyTo.image
-                };
-            }
+        }
 
-            await gcDb.ref("ffkipas_chat").push(payload);
+        gcDb.ref("ffkipas_chat").push(payload).then(() => {
             if (gcInput) gcInput.value = "";
-            clearPendingImage();
             clearReply();
             touchChatName();
-        } catch (err) {
+        }).catch((err) => {
             console.error(err);
-            showToast("Gagal", hasImage ? "Upload/kirim gambar gagal" : "Pesan tidak terkirim", "error");
-        }
-
-        if (sendBtn) {
-            sendBtn.disabled = false;
-            sendBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i>';
-        }
-        if (imageBtn) imageBtn.disabled = false;
+            showToast("Gagal", "Pesan tidak terkirim", "error");
+        });
     });
 }
 
@@ -1442,6 +1362,98 @@ if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initGroupChat);
 } else {
     initGroupChat();
+}
+
+
+
+/* Kirim gambar via ImgBB (gratis) */
+// Ambil API key di https://api.imgbb.com — login → Add API key
+const IMGBB_API_KEY = "aeeb26ddbc98f81adde8f60ae5680595";
+
+const gcImageBtn = document.getElementById("gcImageBtn");
+const gcImageInput = document.getElementById("gcImageInput");
+
+if (gcImageBtn && gcImageInput) {
+    gcImageBtn.addEventListener("click", () => {
+        if (!gcName) {
+            showToast("Nama", "Isi nama dulu", "warning");
+            return;
+        }
+        if (!IMGBB_API_KEY || IMGBB_API_KEY.indexOf("PASTE_") === 0) {
+            showToast("Belum siap", "Isi IMGBB_API_KEY di script.js dulu", "warning");
+            return;
+        }
+        gcImageInput.click();
+    });
+
+    gcImageInput.addEventListener("change", async () => {
+        const file = gcImageInput.files && gcImageInput.files[0];
+        gcImageInput.value = "";
+        if (!file) return;
+
+        if (!gcReady || !gcDb) {
+            showToast("Belum siap", "Chat belum terhubung", "warning");
+            return;
+        }
+        if (!file.type.startsWith("image/")) {
+            showToast("File", "Cuma boleh gambar", "warning");
+            return;
+        }
+        if (file.size > 3 * 1024 * 1024) {
+            showToast("Terlalu besar", "Maksimal 3MB", "warning");
+            return;
+        }
+
+        const now = Date.now();
+        if (now - gcLastSend < 1500) {
+            showToast("Pelan-pelan", "Jangan spam ya", "warning");
+            return;
+        }
+        gcLastSend = now;
+
+        gcImageBtn.disabled = true;
+        const oldIcon = gcImageBtn.innerHTML;
+        gcImageBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+        try {
+            const formData = new FormData();
+            formData.append("image", file);
+
+            const res = await fetch("https://api.imgbb.com/1/upload?key=" + encodeURIComponent(IMGBB_API_KEY), {
+                method: "POST",
+                body: formData
+            });
+            const json = await res.json();
+            if (!json.success || !json.data || !json.data.url) {
+                throw new Error(json.error?.message || "Upload gagal");
+            }
+
+            const imgPayload = {
+                name: gcName,
+                text: "",
+                image: json.data.url,
+                ts: Date.now()
+            };
+            if (gcAvatar) imgPayload.avatar = gcAvatar;
+            if (gcReplyTo) {
+                imgPayload.replyTo = {
+                    id: gcReplyTo.id || "",
+                    name: gcReplyTo.name || "Anon",
+                    text: gcReplyTo.text || "",
+                    image: !!gcReplyTo.image
+                };
+            }
+            await gcDb.ref("ffkipas_chat").push(imgPayload);
+            clearReply();
+            touchChatName();
+        } catch (err) {
+            console.error(err);
+            showToast("Gagal", "Upload gambar gagal", "error");
+        }
+
+        gcImageBtn.disabled = false;
+        gcImageBtn.innerHTML = oldIcon;
+    });
 }
 
 /* ===========================
@@ -1480,8 +1492,18 @@ if (gcAvatarBtn && gcAvatarInput) {
         gcAvatarBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
 
         try {
-            const url = await uploadImageToImgBB(file);
-            gcAvatar = url;
+            const formData = new FormData();
+            formData.append("image", file);
+            const res = await fetch("https://api.imgbb.com/1/upload?key=" + encodeURIComponent(IMGBB_API_KEY), {
+                method: "POST",
+                body: formData
+            });
+            const json = await res.json();
+            if (!json.success || !json.data || !json.data.url) {
+                throw new Error(json.error?.message || "Upload gagal");
+            }
+
+            gcAvatar = (json.data.thumb && json.data.thumb.url) || json.data.url;
             localStorage.setItem("ff_chat_avatar", gcAvatar);
             updateAvatarPreview();
             touchChatName();
@@ -1493,44 +1515,6 @@ if (gcAvatarBtn && gcAvatarInput) {
             updateAvatarPreview();
         }
         gcAvatarBtn.disabled = false;
-    });
-}
-
-const gcImageBtn = document.getElementById("gcImageBtn");
-const gcImageInput = document.getElementById("gcImageInput");
-
-if (gcImageBtn && gcImageInput) {
-    gcImageBtn.addEventListener("click", () => {
-        if (!gcName) {
-            showToast("Nama", "Isi nama dulu", "warning");
-            return;
-        }
-        if (!IMGBB_API_KEY || IMGBB_API_KEY.indexOf("PASTE_") === 0) {
-            showToast("Belum siap", "Isi IMGBB_API_KEY di script.js dulu", "warning");
-            return;
-        }
-        gcImageInput.click();
-    });
-
-    // Pilih gambar → preview dulu, ketik caption, baru kirim
-    gcImageInput.addEventListener("change", () => {
-        const file = gcImageInput.files && gcImageInput.files[0];
-        gcImageInput.value = "";
-        if (!file) return;
-
-        if (!gcName) {
-            showToast("Nama", "Isi nama dulu", "warning");
-            return;
-        }
-        if (!file.type.startsWith("image/")) {
-            showToast("File", "Cuma boleh gambar", "warning");
-            return;
-        }
-        if (file.size > 3 * 1024 * 1024) {
-            showToast("Terlalu besar", "Maksimal 3MB", "warning");
-            return;
-        }
-        setPendingImage(file);
     });
 }
 
