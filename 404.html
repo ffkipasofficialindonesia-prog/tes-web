@@ -4,11 +4,16 @@
 <meta charset="utf-8"/>
 <title>FFKIPAS</title>
 <script>
-  // GitHub Pages SPA fallback: arahkan path section ke index.html
-  // Client script.js akan baca pathname dan scroll ke section
-  sessionStorage.setItem("spa_redirect", location.pathname + location.search + location.hash);
-  location.replace("/index.html" + location.search + location.hash);
+  // GitHub Pages: path /history dll dilayani 404.html
+  // Simpan path asli, lalu buka halaman utama — script.js yang scroll ke section
+  try {
+    sessionStorage.setItem("spa_redirect", location.pathname + location.search + location.hash);
+  } catch (e) {}
+  location.replace("/" + (location.search || "") + (location.hash || ""));
 </script>
+<meta http-equiv="refresh" content="0;url=/" />
 </head>
-<body></body>
+<body>
+  <p><a href="/">Kembali ke beranda</a></p>
+</body>
 </html>

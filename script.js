@@ -165,9 +165,26 @@ const PATH_TO_SECTION = {
 };
 
 function sectionFromPath(pathname) {
-    let p = (pathname || "/").replace(/\/+$/, "") || "/";
+    let p = String(pathname || "/").split("?")[0].split("#")[0];
+    // hilangkan /index.html kalau ada
+    p = p.replace(/\/index\.html$/i, "") || "/";
+    p = p.replace(/\/+$/, "") || "/";
     if (p !== "/") p = p.toLowerCase();
-    return PATH_TO_SECTION[p] || PATH_TO_SECTION[pathname] || null;
+    return PATH_TO_SECTION[p] || null;
+}
+
+function getHeaderOffset() {
+    const header = document.querySelector(".header") || document.querySelector("header");
+    return (header ? header.offsetHeight : 68) + 12;
+}
+
+function scrollToSectionEl(el, smooth) {
+    if (!el) return;
+    const top = el.getBoundingClientRect().top + window.pageYOffset - getHeaderOffset();
+    window.scrollTo({
+        top: Math.max(0, top),
+        behavior: smooth ? "smooth" : "auto"
+    });
 }
 
 function navigateToSection(sectionId, opts = {}) {
@@ -182,64 +199,82 @@ function navigateToSection(sectionId, opts = {}) {
         } catch (e) { /* ignore */ }
     }
 
-    const behavior = smooth ? "smooth" : "auto";
-    setTimeout(() => {
-        target.scrollIntoView({ behavior, block: "start" });
-        if (sectionId === "accountCheck") {
-            setTimeout(() => {
-                const uid = document.getElementById("ffUid");
-                if (uid) uid.focus();
-            }, 400);
-        }
-    }, 60);
+    // scroll beberapa kali — layout/gambar bisa geser tinggi halaman
+    const delays = smooth ? [80, 250] : [50, 150, 400, 800];
+    delays.forEach((ms, i) => {
+        setTimeout(() => scrollToSectionEl(target, smooth && i === 0), ms);
+    });
+
+    if (sectionId === "accountCheck") {
+        setTimeout(() => {
+            const uid = document.getElementById("ffUid");
+            if (uid) uid.focus();
+        }, 450);
+    }
     return true;
 }
 
 function applyRouteFromLocation() {
-    // GitHub Pages 404 fallback: path asli disimpan di sessionStorage
+    let sectionId = null;
+
+    // 1) GitHub Pages 404 fallback
     try {
         const saved = sessionStorage.getItem("spa_redirect");
         if (saved) {
             sessionStorage.removeItem("spa_redirect");
             const pathOnly = saved.split("?")[0].split("#")[0];
-            const sidFromSaved = sectionFromPath(pathOnly);
-            if (sidFromSaved) {
+            sectionId = sectionFromPath(pathOnly);
+            if (sectionId) {
                 try {
-                    history.replaceState({ section: sidFromSaved }, "", SECTION_PATHS[sidFromSaved] || pathOnly);
+                    history.replaceState({ section: sectionId }, "", SECTION_PATHS[sectionId] || pathOnly);
                 } catch (e) {}
-                navigateToSection(sidFromSaved, { push: false, smooth: false });
-                return;
             }
         }
     } catch (e) {}
 
-    // hash lama → jadi path bersih
-    if (location.hash && location.hash.length > 1) {
+    // 2) hash lama
+    if (!sectionId && location.hash && location.hash.length > 1) {
         const hid = location.hash.slice(1);
         if (document.getElementById(hid) && SECTION_PATHS[hid]) {
+            sectionId = hid;
             try {
                 history.replaceState({ section: hid }, "", SECTION_PATHS[hid]);
             } catch (e) {}
-            navigateToSection(hid, { push: false, smooth: false });
-            return;
         }
     }
-    const sid = sectionFromPath(location.pathname);
-    if (sid && sid !== "home") {
-        navigateToSection(sid, { push: false, smooth: false });
+
+    // 3) pathname biasa (/history, /download, ...)
+    if (!sectionId) {
+        sectionId = sectionFromPath(location.pathname);
+    }
+
+    if (sectionId && sectionId !== "home") {
+        navigateToSection(sectionId, { push: false, smooth: false });
     }
 }
 
 window.addEventListener("popstate", (e) => {
     const sid = (e.state && e.state.section) || sectionFromPath(location.pathname) || "home";
+    if (sid === "home") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+    }
     navigateToSection(sid, { push: false, smooth: true });
 });
 
 // Saat load: bersihkan # dan scroll ke section
+function bootRoute() {
+    // tunggu layout sedikit biar offset header akurat
+    setTimeout(applyRouteFromLocation, 30);
+    window.addEventListener("load", () => {
+        // sekali lagi setelah semua asset (anti loncat balik ke atas)
+        setTimeout(applyRouteFromLocation, 100);
+    });
+}
 if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", applyRouteFromLocation);
+    document.addEventListener("DOMContentLoaded", bootRoute);
 } else {
-    applyRouteFromLocation();
+    bootRoute();
 }
 
 document.querySelectorAll(".side-link").forEach(link => {
