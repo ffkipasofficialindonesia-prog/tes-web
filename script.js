@@ -873,6 +873,7 @@ let gcAvatar = localStorage.getItem("ff_chat_avatar") || "";
 let gcLastSend = 0;
 let gcReplyTo = null; // { id, name, text, image? }
 let gcMsgCache = {};  // id -> message (untuk scroll ke pesan asli)
+let gcForceScrollBottom = true; // true saat buka chat / kirim pesan sendiri
 
 // Session unik per browser — buat klaim nama
 let gcSessionId = localStorage.getItem("ff_chat_sid") || "";
@@ -1009,11 +1010,24 @@ function adminBadgeHtml(name) {
     </span>`;
 }
 
+function scrollGcToBottom(smooth) {
+    if (!gcMessages) return;
+    requestAnimationFrame(() => {
+        gcMessages.scrollTop = gcMessages.scrollHeight;
+        // sekali lagi setelah layout/gambar settle
+        setTimeout(() => {
+            if (gcMessages) gcMessages.scrollTop = gcMessages.scrollHeight;
+        }, smooth ? 80 : 30);
+    });
+}
+
 function openGroupChat() {
     if (typeof closeChatMenu === "function") closeChatMenu();
     if (groupChatPanel) groupChatPanel.classList.add("show");
     if (groupChatOverlay) groupChatOverlay.classList.add("show");
     setChatLabelVisible(false);
+    gcForceScrollBottom = true;
+    scrollGcToBottom(true);
     if (gcName) {
         if (gcNameBar) gcNameBar.style.display = "none";
         if (gcForm) gcForm.style.display = "flex";
@@ -1113,8 +1127,9 @@ function renderMessages(list) {
         return;
     }
 
-    // keep scroll position if user is near bottom
-    const wasNearBottom = gcMessages.scrollHeight - gcMessages.scrollTop - gcMessages.clientHeight < 80;
+    // keep scroll position if user is near bottom, atau force saat buka chat
+    const wasNearBottom = gcForceScrollBottom ||
+        (gcMessages.scrollHeight - gcMessages.scrollTop - gcMessages.clientHeight < 120);
 
     gcMsgCache = {};
     list.forEach(m => { if (m.id) gcMsgCache[m.id] = m; });
@@ -1192,7 +1207,8 @@ function renderMessages(list) {
     });
 
     if (wasNearBottom) {
-        gcMessages.scrollTop = gcMessages.scrollHeight;
+        scrollGcToBottom(false);
+        gcForceScrollBottom = false;
     }
 }
 
@@ -1346,10 +1362,12 @@ if (gcForm) {
             };
         }
 
+        gcForceScrollBottom = true;
         gcDb.ref("ffkipas_chat").push(payload).then(() => {
             if (gcInput) gcInput.value = "";
             clearReply();
             touchChatName();
+            scrollGcToBottom(false);
         }).catch((err) => {
             console.error(err);
             showToast("Gagal", "Pesan tidak terkirim", "error");
@@ -1443,9 +1461,11 @@ if (gcImageBtn && gcImageInput) {
                     image: !!gcReplyTo.image
                 };
             }
+            gcForceScrollBottom = true;
             await gcDb.ref("ffkipas_chat").push(imgPayload);
             clearReply();
             touchChatName();
+            scrollGcToBottom(false);
         } catch (err) {
             console.error(err);
             showToast("Gagal", "Upload gambar gagal", "error");
