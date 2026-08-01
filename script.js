@@ -960,7 +960,7 @@ function touchChatName() {
 =========================== */
 const GC_ADMIN_NAMES = [
     "ADMIN MUHLIS",
-    "dah"
+    "ADMIN MUHLIS2"
 ];
 const GC_ADMIN_BADGE_SRC = "assets/admin-badge.png";
 
