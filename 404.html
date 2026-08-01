@@ -4,12 +4,32 @@
 <meta charset="utf-8"/>
 <title>FFKIPAS</title>
 <script>
-  // GitHub Pages: path /history dll dilayani 404.html
-  // Simpan path asli, lalu buka halaman utama — script.js yang scroll ke section
+(function () {
+  var path = location.pathname || "/";
+  // Ambil segmen path: /history -> history
+  var seg = path.replace(/^\/+|\/+$/g, "").split("/")[0] || "";
+  seg = seg.toLowerCase();
+  var map = {
+    download: "download",
+    topup: "topup",
+    "cek-akun": "accountCheck",
+    account: "accountCheck",
+    accountcheck: "accountCheck",
+    kalkulator: "pricecalc",
+    pricecalc: "pricecalc",
+    history: "history",
+    riwayat: "history",
+    faq: "faq",
+    home: "home"
+  };
+  var section = map[seg] || "";
   try {
-    sessionStorage.setItem("spa_redirect", location.pathname + location.search + location.hash);
+    if (section) sessionStorage.setItem("spa_redirect", "/" + seg);
   } catch (e) {}
-  location.replace("/" + (location.search || "") + (location.hash || ""));
+  // Query param lebih andal daripada sessionStorage saja
+  var q = section ? ("?go=" + encodeURIComponent(section)) : "";
+  location.replace("/" + q);
+})();
 </script>
 <meta http-equiv="refresh" content="0;url=/" />
 </head>

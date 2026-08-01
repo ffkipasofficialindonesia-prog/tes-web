@@ -217,22 +217,36 @@ function navigateToSection(sectionId, opts = {}) {
 function applyRouteFromLocation() {
     let sectionId = null;
 
-    // 1) GitHub Pages 404 fallback
+    // 1) Query ?go=history (paling andal lewat 404.html GitHub Pages)
     try {
-        const saved = sessionStorage.getItem("spa_redirect");
-        if (saved) {
-            sessionStorage.removeItem("spa_redirect");
-            const pathOnly = saved.split("?")[0].split("#")[0];
-            sectionId = sectionFromPath(pathOnly);
-            if (sectionId) {
-                try {
-                    history.replaceState({ section: sectionId }, "", SECTION_PATHS[sectionId] || pathOnly);
-                } catch (e) {}
-            }
+        const params = new URLSearchParams(location.search || "");
+        const go = params.get("go");
+        if (go && document.getElementById(go) && SECTION_PATHS[go]) {
+            sectionId = go;
+            try {
+                history.replaceState({ section: sectionId }, "", SECTION_PATHS[sectionId]);
+            } catch (e) {}
         }
     } catch (e) {}
 
-    // 2) hash lama
+    // 2) sessionStorage fallback
+    if (!sectionId) {
+        try {
+            const saved = sessionStorage.getItem("spa_redirect");
+            if (saved) {
+                sessionStorage.removeItem("spa_redirect");
+                const pathOnly = saved.split("?")[0].split("#")[0];
+                sectionId = sectionFromPath(pathOnly);
+                if (sectionId) {
+                    try {
+                        history.replaceState({ section: sectionId }, "", SECTION_PATHS[sectionId] || pathOnly);
+                    } catch (e) {}
+                }
+            }
+        } catch (e) {}
+    }
+
+    // 3) hash lama
     if (!sectionId && location.hash && location.hash.length > 1) {
         const hid = location.hash.slice(1);
         if (document.getElementById(hid) && SECTION_PATHS[hid]) {
@@ -243,14 +257,16 @@ function applyRouteFromLocation() {
         }
     }
 
-    // 3) pathname biasa (/history, /download, ...)
+    // 4) pathname (/history, /download, ...) — setelah pushState / refresh yang rewrite
     if (!sectionId) {
         sectionId = sectionFromPath(location.pathname);
     }
 
     if (sectionId && sectionId !== "home") {
         navigateToSection(sectionId, { push: false, smooth: false });
+        return sectionId;
     }
+    return null;
 }
 
 window.addEventListener("popstate", (e) => {
@@ -262,13 +278,15 @@ window.addEventListener("popstate", (e) => {
     navigateToSection(sid, { push: false, smooth: true });
 });
 
-// Saat load: bersihkan # dan scroll ke section
+// Saat load: scroll ke section (ulang beberapa kali biar tidak loncat balik)
 function bootRoute() {
-    // tunggu layout sedikit biar offset header akurat
-    setTimeout(applyRouteFromLocation, 30);
+    const run = () => applyRouteFromLocation();
+    setTimeout(run, 40);
+    setTimeout(run, 200);
     window.addEventListener("load", () => {
-        // sekali lagi setelah semua asset (anti loncat balik ke atas)
-        setTimeout(applyRouteFromLocation, 100);
+        setTimeout(run, 80);
+        setTimeout(run, 350);
+        setTimeout(run, 700);
     });
 }
 if (document.readyState === "loading") {
