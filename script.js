@@ -873,6 +873,111 @@ let gcLastSend = 0;
 let gcReplyTo = null; // { id, name, text, image? }
 let gcMsgCache = {};  // id -> message (untuk scroll ke pesan asli)
 
+// Session unik per browser — buat klaim nama
+let gcSessionId = localStorage.getItem("ff_chat_sid") || "";
+if (!gcSessionId) {
+    gcSessionId = Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+    localStorage.setItem("ff_chat_sid", gcSessionId);
+}
+// Nama dipegang 48 jam sejak last activity (bisa diganti orang lain setelah itu)
+const GC_NAME_HOLD_MS = 48 * 60 * 60 * 1000;
+
+function normalizeChatName(n) {
+    return String(n || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function nameKey(n) {
+    // Firebase key tidak boleh . # $ [ ] /
+    return normalizeChatName(n).replace(/[.#$\[\]\/]/g, "_");
+}
+
+/** Klaim nama unik di Firebase. Return { ok, reason? } */
+async function claimChatName(newName) {
+    if (!gcDb || !gcReady) return { ok: false, reason: "offline" };
+    const trimmed = String(newName || "").trim().slice(0, 16);
+    if (trimmed.length < 2) return { ok: false, reason: "invalid" };
+
+    const key = nameKey(trimmed);
+    if (!key) return { ok: false, reason: "invalid" };
+
+    const ref = gcDb.ref("ffkipas_chat_names/" + key);
+    const oldKey = gcName ? nameKey(gcName) : "";
+
+    try {
+        const tx = await ref.transaction((current) => {
+            const now = Date.now();
+            if (current && current.sid && current.sid !== gcSessionId) {
+                // masih dipegang orang lain & belum expired
+                if (current.ts && (now - current.ts) < GC_NAME_HOLD_MS) {
+                    return; // abort
+                }
+            }
+            return {
+                name: trimmed,
+                sid: gcSessionId,
+                ts: now
+            };
+        });
+
+        if (!tx.committed) {
+            return { ok: false, reason: "taken" };
+        }
+
+        // lepaskan nama lama kalau ganti nama
+        if (oldKey && oldKey !== key) {
+            try {
+                const oldRef = gcDb.ref("ffkipas_chat_names/" + oldKey);
+                await oldRef.transaction((current) => {
+                    if (current && current.sid === gcSessionId) return null;
+                    return current;
+                });
+            } catch (e) { /* ignore */ }
+        }
+
+        return { ok: true };
+    } catch (err) {
+        console.error("claimChatName", err);
+        return { ok: false, reason: "error" };
+    }
+}
+
+/** Perpanjang hold nama (dipanggil saat kirim pesan / buka chat) */
+function touchChatName() {
+    if (!gcDb || !gcReady || !gcName) return;
+    const key = nameKey(gcName);
+    if (!key) return;
+    gcDb.ref("ffkipas_chat_names/" + key).update({
+        name: gcName,
+        sid: gcSessionId,
+        ts: Date.now()
+    }).catch(() => {});
+}
+
+/* ===========================
+   ADMIN BADGE
+   Tambah / ubah nama admin di array di bawah.
+   Cocokkan dengan nama panggilan yang dipakai di chat.
+=========================== */
+const GC_ADMIN_NAMES = [
+    "ADMIN MUHLIS",
+    "dah"
+];
+const GC_ADMIN_BADGE_SRC = "assets/admin-badge.png";
+
+function isAdminName(name) {
+    if (!name) return false;
+    const n = String(name).trim().toLowerCase();
+    return GC_ADMIN_NAMES.some(a => a === n);
+}
+
+function adminBadgeHtml(name) {
+    if (!isAdminName(name)) return "";
+    return `<span class="gc-admin-badge" title="Admin" style="display:inline-flex;align-items:center;gap:3px;max-height:14px;overflow:hidden;vertical-align:middle">
+        <img src="${GC_ADMIN_BADGE_SRC}" alt="Admin" width="12" height="12" style="width:12px!important;height:12px!important;max-width:12px!important;max-height:12px!important;object-fit:contain;display:inline-block;border-radius:3px;flex-shrink:0">
+        <span class="gc-admin-label">Admin</span>
+    </span>`;
+}
+
 function openGroupChat() {
     if (typeof closeChatMenu === "function") closeChatMenu();
     if (groupChatPanel) groupChatPanel.classList.add("show");
@@ -882,6 +987,7 @@ function openGroupChat() {
         if (gcNameBar) gcNameBar.style.display = "none";
         if (gcForm) gcForm.style.display = "flex";
         if (gcInput) setTimeout(() => gcInput.focus(), 100);
+        touchChatName();
     } else {
         if (gcNameBar) gcNameBar.style.display = "flex";
         if (gcForm) gcForm.style.display = "none";
@@ -984,14 +1090,17 @@ function renderMessages(list) {
 
     gcMessages.innerHTML = list.map(m => {
         const me = m.name === gcName ? " me" : "";
+        const displayName = m.name || "Anon";
         let replyHtml = "";
         if (m.replyTo && (m.replyTo.name || m.replyTo.text)) {
-            const rName = escapeHtml(m.replyTo.name || "Anon");
+            const rRaw = m.replyTo.name || "Anon";
+            const rName = escapeHtml(rRaw);
             const rText = escapeHtml(m.replyTo.text || (m.replyTo.image ? "📷 Gambar" : "Pesan"));
             const rId = m.replyTo.id ? ` data-reply-id="${escapeHtml(m.replyTo.id)}"` : "";
+            const rBadge = adminBadgeHtml(rRaw);
             replyHtml = `<div class="gc-msg-reply"${rId} title="Lihat pesan asli">
                 <div class="gc-msg-reply-body">
-                    <span class="gc-msg-reply-name">${rName}</span>
+                    <span class="gc-msg-reply-name">${rName}${rBadge}</span>
                     <span class="gc-msg-reply-text">${rText}</span>
                 </div>
             </div>`;
@@ -1007,8 +1116,9 @@ function renderMessages(list) {
         if (!body) body = `<div class="gc-msg-text"></div>`;
 
         const msgId = m.id ? escapeHtml(m.id) : "";
+        const badge = adminBadgeHtml(displayName);
         return `<div class="gc-msg${me}" data-id="${msgId}">
-            <div class="gc-msg-name">${escapeHtml(m.name || "Anon")}</div>
+            <div class="gc-msg-name">${escapeHtml(displayName)}${badge}</div>
             ${replyHtml}
             ${body}
             <div class="gc-msg-time">${formatTime(m.ts)}</div>
@@ -1073,6 +1183,22 @@ function initGroupChat() {
                 .sort((a, b) => (a.ts || 0) - (b.ts || 0));
             renderMessages(list);
         });
+
+        // Re-klaim nama yang tersimpan di browser ini
+        if (gcName) {
+            claimChatName(gcName).then((res) => {
+                if (!res.ok && res.reason === "taken") {
+                    // nama sudah diambil orang lain → reset
+                    gcName = "";
+                    localStorage.removeItem("ff_chat_name");
+                    if (gcNameBar) gcNameBar.style.display = "flex";
+                    if (gcForm) gcForm.style.display = "none";
+                    showToast("Nama terpakai", "Nama kamu sudah dipakai orang lain. Pilih nama baru.", "warning");
+                } else if (res.ok) {
+                    touchChatName();
+                }
+            });
+        }
     } catch (err) {
         console.error("Firebase init error", err);
         gcReady = false;
@@ -1080,12 +1206,46 @@ function initGroupChat() {
 }
 
 if (gcSaveName) {
-    gcSaveName.onclick = () => {
+    gcSaveName.onclick = async () => {
         const n = (gcNameInput?.value || "").trim().slice(0, 16);
         if (n.length < 2) {
             showToast("Nama", "Minimal 2 huruf ya", "warning");
             return;
         }
+
+        // sama dengan nama sekarang → langsung masuk
+        if (gcName && normalizeChatName(gcName) === normalizeChatName(n)) {
+            if (gcNameBar) gcNameBar.style.display = "none";
+            if (gcForm) gcForm.style.display = "flex";
+            if (gcInput) gcInput.focus();
+            if (gcSaveName) gcSaveName.textContent = "Masuk";
+            touchChatName();
+            return;
+        }
+
+        if (!gcReady || !gcDb) {
+            showToast("Belum siap", "Chat belum terhubung, coba lagi", "warning");
+            return;
+        }
+
+        const prevText = gcSaveName.textContent;
+        gcSaveName.disabled = true;
+        gcSaveName.textContent = "...";
+
+        const res = await claimChatName(n);
+
+        gcSaveName.disabled = false;
+        gcSaveName.textContent = prevText || "Masuk";
+
+        if (!res.ok) {
+            if (res.reason === "taken") {
+                showToast("Nama terpakai", "\"" + n + "\" sudah dipakai orang lain", "warning");
+            } else {
+                showToast("Gagal", "Tidak bisa pakai nama ini, coba lagi", "error");
+            }
+            return;
+        }
+
         gcName = n;
         localStorage.setItem("ff_chat_name", n);
         if (gcNameBar) gcNameBar.style.display = "none";
@@ -1154,6 +1314,7 @@ if (gcForm) {
         gcDb.ref("ffkipas_chat").push(payload).then(() => {
             if (gcInput) gcInput.value = "";
             clearReply();
+            touchChatName();
         }).catch((err) => {
             console.error(err);
             showToast("Gagal", "Pesan tidak terkirim", "error");
@@ -1248,6 +1409,7 @@ if (gcImageBtn && gcImageInput) {
             }
             await gcDb.ref("ffkipas_chat").push(imgPayload);
             clearReply();
+            touchChatName();
         } catch (err) {
             console.error(err);
             showToast("Gagal", "Upload gambar gagal", "error");

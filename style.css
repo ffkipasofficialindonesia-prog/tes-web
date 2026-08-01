@@ -2654,8 +2654,53 @@ GROUP CHAT ROOM
   font-weight: 700;
   color: #ffb300;
   margin-bottom: 2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+  line-height: 1.2;
 }
 .gc-msg.me .gc-msg-name { color: #ffc107; }
+
+/* Admin badge — kecil, menempel di samping nama */
+.gc-admin-badge {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 3px;
+  vertical-align: middle;
+  flex-shrink: 0;
+  max-width: 54px;
+  max-height: 14px;
+  overflow: hidden;
+}
+.gc-admin-badge img,
+.gc-msg .gc-admin-badge img,
+.gc-msg-name .gc-admin-badge img {
+  width: 12px !important;
+  height: 12px !important;
+  max-width: 12px !important;
+  max-height: 12px !important;
+  min-width: 12px !important;
+  min-height: 12px !important;
+  object-fit: contain !important;
+  border-radius: 3px !important;
+  flex-shrink: 0 !important;
+  display: inline-block !important;
+  margin: 0 !important;
+  filter: drop-shadow(0 0 3px rgba(255, 180, 0, 0.5));
+}
+.gc-admin-label {
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #111;
+  background: linear-gradient(90deg, #ffb100, #ff7b00);
+  padding: 0 4px;
+  border-radius: 4px;
+  line-height: 1.35;
+  white-space: nowrap;
+}
 .gc-msg-text {
   font-size: 13.5px;
   color: #eee;
@@ -2685,11 +2730,22 @@ GROUP CHAT ROOM
   flex: 1;
 }
 .gc-msg-reply-name {
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-wrap: nowrap;
   font-size: 11px;
   font-weight: 700;
   color: #ffb300;
   margin-bottom: 1px;
+}
+.gc-msg-reply-name .gc-admin-badge img {
+  width: 11px;
+  height: 11px;
+}
+.gc-msg-reply-name .gc-admin-label {
+  font-size: 7px;
+  padding: 0 3px;
 }
 .gc-msg-reply-text {
   display: block;
