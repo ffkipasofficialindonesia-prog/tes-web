@@ -959,8 +959,8 @@ function touchChatName() {
    Cocokkan dengan nama panggilan yang dipakai di chat.
 =========================== */
 const GC_ADMIN_NAMES = [
-    "ADMIN MUHLIS",
-    "ADMIN MUHLIS2"
+    "muhlis",
+    "muhlis2"
 ];
 const GC_ADMIN_BADGE_SRC = "assets/admin-badge.png";
 
