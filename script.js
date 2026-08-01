@@ -135,9 +135,126 @@ if (menuBtn) {
 if (menuClose) menuClose.onclick = closeSideMenu;
 if (menuOverlay) menuOverlay.onclick = closeSideMenu;
 
+/* ===========================
+CLEAN URL (tanpa #)
+Contoh: muhlishkipas.my.id/history
+=========================== */
+const SECTION_PATHS = {
+    home: "/",
+    download: "/download",
+    topup: "/topup",
+    accountCheck: "/cek-akun",
+    pricecalc: "/kalkulator",
+    history: "/history",
+    faq: "/faq"
+};
+const PATH_TO_SECTION = {
+    "": "home",
+    "/": "home",
+    "/home": "home",
+    "/download": "download",
+    "/topup": "topup",
+    "/cek-akun": "accountCheck",
+    "/accountcheck": "accountCheck",
+    "/account": "accountCheck",
+    "/kalkulator": "pricecalc",
+    "/pricecalc": "pricecalc",
+    "/history": "history",
+    "/riwayat": "history",
+    "/faq": "faq"
+};
+
+function sectionFromPath(pathname) {
+    let p = (pathname || "/").replace(/\/+$/, "") || "/";
+    if (p !== "/") p = p.toLowerCase();
+    return PATH_TO_SECTION[p] || PATH_TO_SECTION[pathname] || null;
+}
+
+function navigateToSection(sectionId, opts = {}) {
+    const { push = true, smooth = true } = opts;
+    const target = document.getElementById(sectionId);
+    if (!target) return false;
+
+    if (push) {
+        const path = SECTION_PATHS[sectionId] || "/";
+        try {
+            history.pushState({ section: sectionId }, "", path);
+        } catch (e) { /* ignore */ }
+    }
+
+    const behavior = smooth ? "smooth" : "auto";
+    setTimeout(() => {
+        target.scrollIntoView({ behavior, block: "start" });
+        if (sectionId === "accountCheck") {
+            setTimeout(() => {
+                const uid = document.getElementById("ffUid");
+                if (uid) uid.focus();
+            }, 400);
+        }
+    }, 60);
+    return true;
+}
+
+function applyRouteFromLocation() {
+    // hash lama → jadi path bersih
+    if (location.hash && location.hash.length > 1) {
+        const hid = location.hash.slice(1);
+        if (document.getElementById(hid) && SECTION_PATHS[hid]) {
+            try {
+                history.replaceState({ section: hid }, "", SECTION_PATHS[hid]);
+            } catch (e) {}
+            navigateToSection(hid, { push: false, smooth: false });
+            return;
+        }
+    }
+    const sid = sectionFromPath(location.pathname);
+    if (sid && sid !== "home") {
+        navigateToSection(sid, { push: false, smooth: false });
+    }
+}
+
+window.addEventListener("popstate", (e) => {
+    const sid = (e.state && e.state.section) || sectionFromPath(location.pathname) || "home";
+    navigateToSection(sid, { push: false, smooth: true });
+});
+
+// Saat load: bersihkan # dan scroll ke section
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", applyRouteFromLocation);
+} else {
+    applyRouteFromLocation();
+}
+
 document.querySelectorAll(".side-link").forEach(link => {
-    link.addEventListener("click", () => {
-        closeSideMenu();
+    link.addEventListener("click", (e) => {
+        const href = link.getAttribute("href") || "";
+        let sectionId = null;
+        if (href.startsWith("#") && href.length > 1) {
+            sectionId = href.slice(1);
+        } else if (href.startsWith("/")) {
+            sectionId = sectionFromPath(href);
+        }
+        if (sectionId && document.getElementById(sectionId)) {
+            e.preventDefault();
+            closeSideMenu();
+            navigateToSection(sectionId, { push: true, smooth: true });
+        } else {
+            closeSideMenu();
+        }
+    });
+});
+
+// Link internal lain (logo, tombol kalkulator, dll)
+document.querySelectorAll('a[href^="#"]').forEach(link => {
+    if (link.classList.contains("side-link")) return;
+    link.addEventListener("click", (e) => {
+        const href = link.getAttribute("href") || "";
+        if (href.length < 2) return;
+        const sectionId = href.slice(1);
+        if (SECTION_PATHS[sectionId] && document.getElementById(sectionId)) {
+            e.preventDefault();
+            navigateToSection(sectionId, { push: true, smooth: true });
+        }
     });
 });
 
@@ -214,18 +331,7 @@ document.querySelectorAll(".search-item").forEach(item => {
     item.addEventListener("click", () => {
         const targetId = item.dataset.target;
         closeSearch();
-        const target = document.getElementById(targetId);
-        if (target) {
-            setTimeout(() => {
-                target.scrollIntoView({ behavior: "smooth", block: "start" });
-                if (targetId === "accountCheck") {
-                    setTimeout(() => {
-                        const uid = document.getElementById("ffUid");
-                        if (uid) uid.focus();
-                    }, 450);
-                }
-            }, 120);
-        }
+        if (targetId) navigateToSection(targetId, { push: true, smooth: true });
     });
 });
 
