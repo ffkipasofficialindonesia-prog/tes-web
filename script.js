@@ -1172,6 +1172,7 @@ const GC_ADMIN_NAMES = [
     "muhlis2",
     "mas dinzz",
     "jack ganteng",
+    "ＲΞＨΛＮ",
     "lucky tamvan"
 ];
 const GC_ADMIN_BADGE_SRC = "assets/admin-badge.png";
