@@ -1166,24 +1166,24 @@ function avatarHtml(m) {
    Tambah / ubah nama admin di array di bawah.
    Cocokkan dengan nama panggilan yang dipakai di chat.
 =========================== */
+// Huruf besar/kecil & spasi tidak masalah
 const GC_ADMIN_NAMES = [
     "muhlis",
+    "muhlis2",
     "mas dinzz",
-    "lucky tamvan",
     "jack ganteng",
-    "muhlis2"
-    // contoh nama ber-spasi juga boleh:
-    // "muhlis kipas",
-    // "admin muhlis"
+    "lucky tamvan"
 ];
 const GC_ADMIN_BADGE_SRC = "assets/admin-badge.png";
 
 function isAdminName(name) {
     if (!name) return false;
-    // samakan: huruf besar/kecil & spasi (MUHLIS / muhlis / "Muhlis  Kipas")
-    const n = normalizeChatName(name);
+    const n = normalizeChatName(name); // trim + lower + spasi rapi
     if (!n) return false;
-    return GC_ADMIN_NAMES.some(a => normalizeChatName(a) === n);
+    if (GC_ADMIN_NAMES.some(a => normalizeChatName(a) === n)) return true;
+    // cadangan tanpa spasi: "muhlis kipas" == "muhliskipas"
+    const compact = n.replace(/\s+/g, "");
+    return GC_ADMIN_NAMES.some(a => normalizeChatName(a).replace(/\s+/g, "") === compact);
 }
 
 function adminBadgeHtml(name) {

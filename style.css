@@ -514,6 +514,11 @@ section h2 {
   text-transform: uppercase;
 }
 
+/* offset header fixed saat lompat ke section (/history, /download, dll) */
+section[id] {
+  scroll-margin-top: 90px;
+}
+
 /*==============================
 DOWNLOAD SECTION
 ==============================*/
