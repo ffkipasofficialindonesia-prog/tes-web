@@ -135,196 +135,9 @@ if (menuBtn) {
 if (menuClose) menuClose.onclick = closeSideMenu;
 if (menuOverlay) menuOverlay.onclick = closeSideMenu;
 
-/* ===========================
-CLEAN URL (tanpa #)
-Contoh: muhlishkipas.my.id/history
-=========================== */
-const SECTION_PATHS = {
-    home: "/",
-    download: "/download",
-    topup: "/topup",
-    accountCheck: "/cek-akun",
-    pricecalc: "/kalkulator",
-    history: "/history",
-    faq: "/faq"
-};
-const PATH_TO_SECTION = {
-    "": "home",
-    "/": "home",
-    "/home": "home",
-    "/download": "download",
-    "/topup": "topup",
-    "/cek-akun": "accountCheck",
-    "/accountcheck": "accountCheck",
-    "/account": "accountCheck",
-    "/kalkulator": "pricecalc",
-    "/pricecalc": "pricecalc",
-    "/history": "history",
-    "/riwayat": "history",
-    "/faq": "faq"
-};
-
-function sectionFromPath(pathname) {
-    let p = String(pathname || "/").split("?")[0].split("#")[0];
-    // hilangkan /index.html kalau ada
-    p = p.replace(/\/index\.html$/i, "") || "/";
-    p = p.replace(/\/+$/, "") || "/";
-    if (p !== "/") p = p.toLowerCase();
-    return PATH_TO_SECTION[p] || null;
-}
-
-function getHeaderOffset() {
-    const header = document.querySelector(".header") || document.querySelector("header");
-    return (header ? header.offsetHeight : 68) + 12;
-}
-
-function scrollToSectionEl(el, smooth) {
-    if (!el) return;
-    const top = el.getBoundingClientRect().top + window.pageYOffset - getHeaderOffset();
-    window.scrollTo({
-        top: Math.max(0, top),
-        behavior: smooth ? "smooth" : "auto"
-    });
-}
-
-function navigateToSection(sectionId, opts = {}) {
-    const { push = true, smooth = true } = opts;
-    const target = document.getElementById(sectionId);
-    if (!target) return false;
-
-    if (push) {
-        const path = SECTION_PATHS[sectionId] || "/";
-        try {
-            history.pushState({ section: sectionId }, "", path);
-        } catch (e) { /* ignore */ }
-    }
-
-    // scroll beberapa kali — layout/gambar bisa geser tinggi halaman
-    const delays = smooth ? [80, 250] : [50, 150, 400, 800];
-    delays.forEach((ms, i) => {
-        setTimeout(() => scrollToSectionEl(target, smooth && i === 0), ms);
-    });
-
-    if (sectionId === "accountCheck") {
-        setTimeout(() => {
-            const uid = document.getElementById("ffUid");
-            if (uid) uid.focus();
-        }, 450);
-    }
-    return true;
-}
-
-function applyRouteFromLocation() {
-    let sectionId = null;
-
-    // 1) Query ?go=history (paling andal lewat 404.html GitHub Pages)
-    try {
-        const params = new URLSearchParams(location.search || "");
-        const go = params.get("go");
-        if (go && document.getElementById(go) && SECTION_PATHS[go]) {
-            sectionId = go;
-            try {
-                history.replaceState({ section: sectionId }, "", SECTION_PATHS[sectionId]);
-            } catch (e) {}
-        }
-    } catch (e) {}
-
-    // 2) sessionStorage fallback
-    if (!sectionId) {
-        try {
-            const saved = sessionStorage.getItem("spa_redirect");
-            if (saved) {
-                sessionStorage.removeItem("spa_redirect");
-                const pathOnly = saved.split("?")[0].split("#")[0];
-                sectionId = sectionFromPath(pathOnly);
-                if (sectionId) {
-                    try {
-                        history.replaceState({ section: sectionId }, "", SECTION_PATHS[sectionId] || pathOnly);
-                    } catch (e) {}
-                }
-            }
-        } catch (e) {}
-    }
-
-    // 3) hash lama
-    if (!sectionId && location.hash && location.hash.length > 1) {
-        const hid = location.hash.slice(1);
-        if (document.getElementById(hid) && SECTION_PATHS[hid]) {
-            sectionId = hid;
-            try {
-                history.replaceState({ section: hid }, "", SECTION_PATHS[hid]);
-            } catch (e) {}
-        }
-    }
-
-    // 4) pathname (/history, /download, ...) — setelah pushState / refresh yang rewrite
-    if (!sectionId) {
-        sectionId = sectionFromPath(location.pathname);
-    }
-
-    if (sectionId && sectionId !== "home") {
-        navigateToSection(sectionId, { push: false, smooth: false });
-        return sectionId;
-    }
-    return null;
-}
-
-window.addEventListener("popstate", (e) => {
-    const sid = (e.state && e.state.section) || sectionFromPath(location.pathname) || "home";
-    if (sid === "home") {
-        window.scrollTo({ top: 0, behavior: "smooth" });
-        return;
-    }
-    navigateToSection(sid, { push: false, smooth: true });
-});
-
-// Saat load: scroll ke section (ulang beberapa kali biar tidak loncat balik)
-function bootRoute() {
-    const run = () => applyRouteFromLocation();
-    setTimeout(run, 40);
-    setTimeout(run, 200);
-    window.addEventListener("load", () => {
-        setTimeout(run, 80);
-        setTimeout(run, 350);
-        setTimeout(run, 700);
-    });
-}
-if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", bootRoute);
-} else {
-    bootRoute();
-}
-
 document.querySelectorAll(".side-link").forEach(link => {
-    link.addEventListener("click", (e) => {
-        const href = link.getAttribute("href") || "";
-        let sectionId = null;
-        if (href.startsWith("#") && href.length > 1) {
-            sectionId = href.slice(1);
-        } else if (href.startsWith("/")) {
-            sectionId = sectionFromPath(href);
-        }
-        if (sectionId && document.getElementById(sectionId)) {
-            e.preventDefault();
-            closeSideMenu();
-            navigateToSection(sectionId, { push: true, smooth: true });
-        } else {
-            closeSideMenu();
-        }
-    });
-});
-
-// Link internal lain (logo, tombol kalkulator, dll)
-document.querySelectorAll('a[href^="#"]').forEach(link => {
-    if (link.classList.contains("side-link")) return;
-    link.addEventListener("click", (e) => {
-        const href = link.getAttribute("href") || "";
-        if (href.length < 2) return;
-        const sectionId = href.slice(1);
-        if (SECTION_PATHS[sectionId] && document.getElementById(sectionId)) {
-            e.preventDefault();
-            navigateToSection(sectionId, { push: true, smooth: true });
-        }
+    link.addEventListener("click", () => {
+        closeSideMenu();
     });
 });
 
@@ -401,7 +214,18 @@ document.querySelectorAll(".search-item").forEach(item => {
     item.addEventListener("click", () => {
         const targetId = item.dataset.target;
         closeSearch();
-        if (targetId) navigateToSection(targetId, { push: true, smooth: true });
+        const target = document.getElementById(targetId);
+        if (target) {
+            setTimeout(() => {
+                target.scrollIntoView({ behavior: "smooth", block: "start" });
+                if (targetId === "accountCheck") {
+                    setTimeout(() => {
+                        const uid = document.getElementById("ffUid");
+                        if (uid) uid.focus();
+                    }, 450);
+                }
+            }, 120);
+        }
     });
 });
 
