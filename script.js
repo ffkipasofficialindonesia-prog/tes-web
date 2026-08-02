@@ -1171,7 +1171,7 @@ const GC_ADMIN_NAMES = [
     "muhlis",
     "muhlis2",
     "mas dinzz",
-    "si yusuf",
+    "tiktok si yusuf",
     "jack ganteng",
     "ＲΞＨΛＮ",
     "lucky tamvan"
