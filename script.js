@@ -508,6 +508,62 @@ document.querySelectorAll(".download-card a").forEach(btn => {
     });
 });
 
+/* Aim Lock Gimmick — tombol di kartu FFKIPAS + log status */
+const aimLockBtn = document.getElementById("aimLockBtn");
+const aimLockLog = document.getElementById("aimLockLog");
+let aimLockBusy = false;
+
+function aimLog(msg, cls) {
+    if (!aimLockLog) return;
+    aimLockLog.style.display = "block";
+    const line = document.createElement("div");
+    line.className = "log-line" + (cls ? " " + cls : "");
+    line.textContent = msg;
+    aimLockLog.appendChild(line);
+    aimLockLog.scrollTop = aimLockLog.scrollHeight;
+}
+
+function aimLogClear() {
+    if (!aimLockLog) return;
+    aimLockLog.innerHTML = "";
+    aimLockLog.style.display = "none";
+}
+
+if (aimLockBtn) {
+    const aimOriginal = aimLockBtn.innerHTML;
+    aimLockBtn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (aimLockBusy) return;
+        aimLockBusy = true;
+        aimLockBtn.disabled = true;
+        aimLogClear();
+        aimLockBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Loading...';
+
+        const steps = [
+            { wait: 350, msg: "[*] Init Aim Lock module...", cls: "log-info" },
+            { wait: 400, msg: "[*] Inject hook crosshair...", cls: "log-info" },
+            { wait: 400, msg: "[*] Calibrate sensitivity...", cls: "log-info" },
+            { wait: 350, msg: "[OK] Aim Lock aktif", cls: "log-ok" },
+            { wait: 300, msg: "[OK] Aim Head", cls: "log-ok" }
+        ];
+
+        for (const s of steps) {
+            await new Promise(r => setTimeout(r, s.wait));
+            aimLog(s.msg, s.cls);
+        }
+
+        aimLockBtn.innerHTML = '<i class="fa-solid fa-check"></i> Aktif';
+        showToast("Aim Lock", "Aim Lock Head berhasil diaktifkan!", "success");
+
+        setTimeout(() => {
+            aimLockBtn.innerHTML = aimOriginal;
+            aimLockBtn.disabled = false;
+            aimLockBusy = false;
+        }, 2200);
+    });
+}
+
 /* ===========================
 TOPUP DEMO
 =========================== */
@@ -1170,11 +1226,7 @@ function avatarHtml(m) {
 const GC_ADMIN_NAMES = [
     "muhlis",
     "muhlis2",
-    "mas dinzz",
-    "tiktok si yusuf",
-    "jack ganteng",
-    "mas rehan",
-    "lucky tamvan"
+    "muhlis kipas"
 ];
 const GC_ADMIN_BADGE_SRC = "assets/admin-badge.png";
 
