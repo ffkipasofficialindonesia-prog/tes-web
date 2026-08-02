@@ -536,6 +536,76 @@ DOWNLOAD SECTION
   background-clip: text;
 }
 
+.card-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+.card-btns .btn-primary {
+  width: 100%;
+}
+.btn-aimlock {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: 50px;
+  background: linear-gradient(135deg, #1a1a1a, #2a1500);
+  color: #ffb300;
+  text-decoration: none;
+  font-family: var(--font-tech);
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  border: 1px solid rgba(255, 152, 0, 0.45);
+  box-shadow: 0 0 16px rgba(255, 123, 0, 0.15);
+  transition: transform 0.2s, box-shadow 0.2s, background 0.2s, color 0.2s;
+  cursor: pointer;
+}
+.btn-aimlock i {
+  font-size: 13px;
+}
+.btn-aimlock:hover {
+  background: linear-gradient(135deg, #ff7b00, #ffb100);
+  color: #111;
+  border-color: rgba(255, 200, 80, 0.6);
+  box-shadow: 0 4px 20px rgba(255, 123, 0, 0.4);
+  transform: scale(1.02);
+}
+.btn-aimlock:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+.aimlock-log {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(0, 200, 100, 0.1);
+  border: 1px solid rgba(0, 200, 100, 0.3);
+  color: #7dffa0;
+  font-size: 11px;
+  font-family: var(--font-tech);
+  text-align: left;
+  line-height: 1.45;
+  max-height: 90px;
+  overflow-y: auto;
+}
+.aimlock-log .log-line {
+  opacity: 0;
+  animation: fadeIn 0.25s ease forwards;
+}
+.aimlock-log .log-ok {
+  color: #00e676;
+}
+.aimlock-log .log-info {
+  color: #ffc107;
+}
+
 .card-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
