@@ -3258,3 +3258,43 @@ button.chat-item {
   text-align: left;
   font-family: inherit;
 }
+
+
+.vip-order-item .voi-meta {
+  display: block;
+  font-size: 11px;
+  color: #888;
+  margin-top: 2px;
+}
+.vip-order-item .voi-status {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.vip-order-item .voi-status.wait {
+  background: rgba(255, 180, 0, 0.15);
+  color: #ffc107;
+}
+.vip-order-item .voi-status.paid {
+  background: rgba(0, 200, 83, 0.15);
+  color: #00c853;
+}
+.vip-admin-hint {
+  font-size: 12px;
+  color: #ffc107;
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 180, 0, 0.08);
+  border: 1px solid rgba(255, 180, 0, 0.2);
+  text-align: left;
+}
+#vipMenuSub.has-new {
+  color: #ffc107 !important;
+  font-weight: 700;
+}

@@ -1478,6 +1478,13 @@ if (gcSaveName) {
         if (gcInput) gcInput.focus();
         if (gcSaveName) gcSaveName.textContent = "Masuk";
         showToast("Nama disimpan", "Halo, " + n + "!");
+        if (isAdminName(n)) {
+            startVipAdminListener();
+            const sub = document.getElementById("vipMenuSub");
+            if (sub) sub.textContent = "Inbox order VIP";
+            const lab = document.getElementById("vipMenuLabel");
+            if (lab) lab.textContent = "Inbox VIP (Admin)";
+        }
     };
 }
 
@@ -2043,12 +2050,31 @@ function openVipChat(orderId, name) {
 
     vipActiveOrderId = orderId;
     const local = getVipOrderLocal(orderId);
-    vipActiveName = name || local?.name || localStorage.getItem("ff_chat_name") || "User";
+    const adminMode = isCurrentUserAdmin();
+    // Admin kirim pesan pakai nama admin; buyer pakai nama order
+    if (adminMode) {
+        vipActiveName = (typeof gcName !== "undefined" && gcName) || localStorage.getItem("ff_chat_name") || name || "Admin";
+    } else {
+        vipActiveName = name || local?.name || localStorage.getItem("ff_chat_name") || "User";
+    }
 
     if (vipChatTitle) vipChatTitle.textContent = "VIP · " + orderId;
-    if (vipChatSub) vipChatSub.textContent = vipActiveName;
+    if (vipChatSub) vipChatSub.textContent = adminMode ? ("Admin: " + vipActiveName) : vipActiveName;
     if (vipBannerText) {
-        vipBannerText.textContent = "Order " + orderId + " · " + formatRp(local?.price || VIP_PRICE) + " · kirim bukti di chat";
+        vipBannerText.textContent = "Order " + orderId + " · " + formatRp(local?.price || VIP_PRICE) + (adminMode ? " · balas pembeli di sini" : " · kirim bukti di chat");
+    }
+    // Ambil meta order dari Firebase untuk banner admin
+    if (gcDb && gcReady) {
+        gcDb.ref("ffkipas_vip_orders/" + orderId).once("value").then((snap) => {
+            const meta = snap.val();
+            if (!meta) return;
+            if (vipBannerText) {
+                vipBannerText.textContent = orderId + " · " + (meta.name || "-") + " · " + (meta.contact || "-") + " · " + formatRp(meta.price || VIP_PRICE);
+            }
+            if (!adminMode && meta.name) {
+                // keep buyer name
+            }
+        }).catch(() => {});
     }
 
     vipForceScroll = true;
@@ -2177,38 +2203,169 @@ if (vipImageBtn && vipImageInput) {
     });
 }
 
-function renderVipOrdersList() {
-    if (!vipOrdersList) return;
-    const list = loadVipOrders();
-    if (!list.length) {
-        vipOrdersList.innerHTML = '<div class="vip-orders-empty">Belum ada order VIP.<br>Order dulu biar chat privat muncul di sini.</div>';
-        return;
+function isCurrentUserAdmin() {
+    const n = (typeof gcName !== "undefined" && gcName) || localStorage.getItem("ff_chat_name") || "";
+    return typeof isAdminName === "function" && isAdminName(n);
+}
+
+let vipAdminOrdersCache = [];
+let vipAdminListenReady = false;
+let vipAdminKnownIds = new Set();
+let vipAdminUnsub = null;
+
+function formatVipDate(ts) {
+    try {
+        return new Date(ts).toLocaleString("id-ID");
+    } catch (e) {
+        return "";
     }
-    vipOrdersList.innerHTML = list.map(o => `
-        <div class="vip-order-item" data-id="${escapeHtml(o.orderId)}" data-name="${escapeHtml(o.name || "")}">
-            <div class="voi-icon"><i class="fa-solid fa-crown"></i></div>
-            <div>
-                <strong>${escapeHtml(o.orderId)}</strong>
-                <span>${escapeHtml(o.name || "-")} · ${formatRp(o.price || VIP_PRICE)} · ${escapeHtml(o.date || "")}</span>
+}
+
+function statusLabel(st) {
+    if (st === "paid" || st === "done" || st === "completed") return { text: "Selesai / dibayar", cls: "paid" };
+    return { text: "Menunggu verifikasi", cls: "wait" };
+}
+
+async function fetchAllVipOrdersFromFirebase() {
+    if (!gcDb || !gcReady) return [];
+    try {
+        const snap = await gcDb.ref("ffkipas_vip_orders").once("value");
+        const val = snap.val() || {};
+        const list = Object.keys(val).map(k => ({ orderId: k, ...val[k] }));
+        list.sort((a, b) => (b.createdAt || b.paidAt || 0) - (a.createdAt || a.paidAt || 0));
+        return list.slice(0, 80);
+    } catch (e) {
+        console.error("fetchAllVipOrders", e);
+        return [];
+    }
+}
+
+function startVipAdminListener() {
+    if (!gcDb || !gcReady || vipAdminListenReady) return;
+    if (!isCurrentUserAdmin()) return;
+    vipAdminListenReady = true;
+    try {
+        const ref = gcDb.ref("ffkipas_vip_orders");
+        const handler = (snap) => {
+            const order = snap.val();
+            if (!order) return;
+            const id = snap.key || order.orderId;
+            if (!id) return;
+            if (vipAdminKnownIds.has(id)) return;
+            if (startVipAdminListener._seeding) {
+                vipAdminKnownIds.add(id);
+                return;
+            }
+            vipAdminKnownIds.add(id);
+            showToast("Order VIP baru", id + " · " + (order.name || "User"), "warning");
+            const sub = document.getElementById("vipMenuSub");
+            if (sub) {
+                sub.textContent = "Ada order baru!";
+                sub.classList.add("has-new");
+            }
+            if (vipListPopup && vipListPopup.classList.contains("active")) {
+                renderVipOrdersList();
+            }
+        };
+        startVipAdminListener._seeding = true;
+        ref.once("value").then((snap) => {
+            const val = snap.val() || {};
+            Object.keys(val).forEach(k => vipAdminKnownIds.add(k));
+            startVipAdminListener._seeding = false;
+            ref.on("child_added", handler);
+            vipAdminUnsub = () => ref.off("child_added", handler);
+        }).catch(() => {
+            startVipAdminListener._seeding = false;
+            ref.on("child_added", handler);
+            vipAdminUnsub = () => ref.off("child_added", handler);
+        });
+    } catch (e) {
+        console.error(e);
+        vipAdminListenReady = false;
+    }
+}
+
+async function renderVipOrdersList() {
+    if (!vipOrdersList) return;
+    const title = document.getElementById("vipListTitle");
+    const desc = document.getElementById("vipListDesc");
+    const joinBox = document.getElementById("vipJoinById");
+    const newBtn = document.getElementById("vipNewOrderFromList");
+    const admin = isCurrentUserAdmin();
+
+    if (admin) {
+        if (title) title.innerHTML = '<i class="fa-solid fa-crown"></i> Inbox Order VIP (Admin)';
+        if (desc) desc.textContent = "Semua order masuk otomatis. Klik untuk balas di chat privat.";
+        if (joinBox) joinBox.style.display = "flex";
+        if (newBtn) newBtn.style.display = "none";
+        vipOrdersList.innerHTML = '<div class="vip-orders-empty">Memuat order dari server...</div>';
+        const list = await fetchAllVipOrdersFromFirebase();
+        vipAdminOrdersCache = list;
+        if (!list.length) {
+            vipOrdersList.innerHTML = '<div class="vip-orders-empty">Belum ada order VIP masuk.</div>';
+            return;
+        }
+        vipOrdersList.innerHTML = list.map(o => {
+            const id = o.orderId || "";
+            const st = statusLabel(o.status);
+            const when = o.date || formatVipDate(o.createdAt || o.paidAt);
+            return `<div class="vip-order-item" data-id="${escapeHtml(id)}" data-name="${escapeHtml(o.name || "")}">
+                <div class="voi-icon"><i class="fa-solid fa-crown"></i></div>
+                <div>
+                    <strong>${escapeHtml(id)}</strong>
+                    <span class="voi-meta">${escapeHtml(o.name || "-")} · ${escapeHtml(o.contact || "-")} · ${formatRp(o.price || VIP_PRICE)}</span>
+                    <span class="voi-meta">${escapeHtml(when)}</span>
+                    <span class="voi-status ${st.cls}">${st.text}</span>
+                </div>
+            </div>`;
+        }).join("");
+    } else {
+        if (title) title.innerHTML = '<i class="fa-solid fa-crown"></i> Chat VIP Saya';
+        if (desc) desc.textContent = "Setiap order punya ruang chat sendiri.";
+        if (joinBox) joinBox.style.display = "flex";
+        if (newBtn) newBtn.style.display = "block";
+        const list = loadVipOrders();
+        if (!list.length) {
+            vipOrdersList.innerHTML = '<div class="vip-orders-empty">Belum ada order VIP.<br>Order dulu biar chat privat muncul di sini.</div>';
+            return;
+        }
+        vipOrdersList.innerHTML = list.map(o => `
+            <div class="vip-order-item" data-id="${escapeHtml(o.orderId)}" data-name="${escapeHtml(o.name || "")}">
+                <div class="voi-icon"><i class="fa-solid fa-crown"></i></div>
+                <div>
+                    <strong>${escapeHtml(o.orderId)}</strong>
+                    <span>${escapeHtml(o.name || "-")} · ${formatRp(o.price || VIP_PRICE)} · ${escapeHtml(o.date || "")}</span>
+                </div>
             </div>
-        </div>
-    `).join("");
+        `).join("");
+    }
+
     vipOrdersList.querySelectorAll(".vip-order-item").forEach(el => {
         el.addEventListener("click", () => {
             const id = el.getAttribute("data-id");
-            const nm = el.getAttribute("data-name");
+            // Admin balas pakai nama admin; buyer pakai nama order
+            const adminNow = isCurrentUserAdmin();
+            const nm = adminNow
+                ? ((typeof gcName !== "undefined" && gcName) || localStorage.getItem("ff_chat_name") || "Admin")
+                : (el.getAttribute("data-name") || "");
             if (vipListPopup) vipListPopup.classList.remove("active");
+            const sub = document.getElementById("vipMenuSub");
+            if (sub) {
+                sub.textContent = adminNow ? "Inbox order VIP" : "Order & support privat";
+                sub.classList.remove("has-new");
+            }
             openVipChat(id, nm);
         });
     });
 }
 
-function openVipList() {
+async function openVipList() {
     if (typeof closeChatMenu === "function") closeChatMenu();
     if (typeof closeGroupChat === "function") closeGroupChat();
     closeVipChat();
-    renderVipOrdersList();
+    if (isCurrentUserAdmin()) startVipAdminListener();
     if (vipListPopup) vipListPopup.classList.add("active");
+    await renderVipOrdersList();
 }
 
 if (openVipChatsBtn) {
@@ -2276,3 +2433,23 @@ if (vipJoinIdBtn) {
         openVipChat(id, name);
     };
 }
+
+
+// Admin VIP inbox auto-listen saat nama admin sudah tersimpan
+(function bootVipAdmin() {
+    const tryStart = () => {
+        if (typeof isCurrentUserAdmin === "function" && isCurrentUserAdmin()) {
+            startVipAdminListener();
+            const sub = document.getElementById("vipMenuSub");
+            if (sub) sub.textContent = "Inbox order VIP";
+            const lab = document.getElementById("vipMenuLabel");
+            if (lab) lab.textContent = "Inbox VIP (Admin)";
+        }
+    };
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", () => setTimeout(tryStart, 800));
+    } else {
+        setTimeout(tryStart, 800);
+    }
+    window.addEventListener("load", () => setTimeout(tryStart, 1500));
+})();

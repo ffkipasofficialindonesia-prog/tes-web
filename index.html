@@ -13,7 +13,7 @@
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800;900&family=Oxanium:wght@500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
-<link href="style.css?v=20260805f" rel="stylesheet"/>
+<link href="style.css?v=20260805g" rel="stylesheet"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 </head>
 <body>
@@ -418,11 +418,11 @@
 <div class="popup" id="vipListPopup">
     <div class="popup-box vip-list-box">
         <span class="close" id="closeVipList">×</span>
-        <h2><i class="fa-solid fa-crown"></i> Chat VIP Saya</h2>
-        <p class="vip-desc">Setiap order punya ruang chat sendiri.</p>
+        <h2 id="vipListTitle"><i class="fa-solid fa-crown"></i> Chat VIP Saya</h2>
+        <p class="vip-desc" id="vipListDesc">Setiap order punya ruang chat sendiri.</p>
         <div id="vipOrdersList" class="vip-orders-list"></div>
-        <div class="vip-join-by-id">
-            <input type="text" id="vipJoinIdInput" maxlength="24" placeholder="Kode Order (admin / recover)" autocomplete="off"/>
+        <div class="vip-join-by-id" id="vipJoinById">
+            <input type="text" id="vipJoinIdInput" maxlength="24" placeholder="Kode Order (opsional)" autocomplete="off"/>
             <button type="button" id="vipJoinIdBtn">Buka</button>
         </div>
         <button type="button" class="buy-btn" id="vipNewOrderFromList">+ Order VIP Baru</button>
@@ -503,8 +503,8 @@
             <button type="button" class="chat-item chat-vip" id="openVipChatsBtn">
                 <div class="chat-item-icon"><i class="fa-solid fa-crown"></i></div>
                 <div class="chat-item-text">
-                    <strong>Chat VIP Saya</strong>
-                    <span>Order & support privat</span>
+                    <strong id="vipMenuLabel">Chat VIP Saya</strong>
+                    <span id="vipMenuSub">Order & support privat</span>
                 </div>
                 <i class="fa-solid fa-bolt chat-arrow"></i>
             </button>
@@ -551,6 +551,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
-<script src="script.js?v=20260805f"></script>
+<script src="script.js?v=20260805g"></script>
 </body>
 </html>
