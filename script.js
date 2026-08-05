@@ -66,7 +66,11 @@ function unlockPage() {
         ["invoice", "active"],
         ["chatMenu", "show"],
         ["groupChatPanel", "show"],
-        ["groupChatOverlay", "show"]
+        ["groupChatOverlay", "show"],
+        ["vipPopup", "active"],
+        ["vipListPopup", "active"],
+        ["vipChatPanel", "show"],
+        ["vipChatOverlay", "show"]
     ];
     ids.forEach(([id, cls]) => {
         const el = document.getElementById(id);
@@ -144,7 +148,6 @@ const SECTION_PATHS = {
     download: "/download",
     topup: "/topup",
     accountCheck: "/cek-akun",
-    pricecalc: "/kalkulator",
     history: "/history",
     faq: "/faq"
 };
@@ -157,8 +160,6 @@ const PATH_TO_SECTION = {
     "/cek-akun": "accountCheck",
     "/accountcheck": "accountCheck",
     "/account": "accountCheck",
-    "/kalkulator": "pricecalc",
-    "/pricecalc": "pricecalc",
     "/history": "history",
     "/riwayat": "history",
     "/faq": "faq"
@@ -452,7 +453,7 @@ const observer = new IntersectionObserver(entries => {
     });
 }, { threshold: 0.12 });
 
-document.querySelectorAll(".download-card, .game-card, .stat, .faq-item, .account-search, .calc-box").forEach(el => {
+document.querySelectorAll(".download-card, .game-card, .stat, .faq-item, .account-search").forEach(el => {
     el.classList.add("hidden");
     observer.observe(el);
 });
@@ -847,17 +848,6 @@ if (historyList) {
     });
 }
 
-/* ===========================
-CALCULATOR
-=========================== */
-const calcBtn = document.getElementById("calcBtn");
-if (calcBtn) {
-    calcBtn.onclick = () => {
-        const diamond = Number(document.getElementById("diamondInput").value) || 0;
-        const hasil = diamond * 121;
-        document.getElementById("calcResult").innerHTML = "Rp " + hasil.toLocaleString("id-ID");
-    };
-}
 
 /* ===========================
 SLIDER (SINGLE VIDEO)
@@ -1169,7 +1159,6 @@ function avatarHtml(m) {
 // Huruf besar/kecil & spasi tidak masalah
 const GC_ADMIN_NAMES = [
     "muhlis",
-    "muhlis2",
     "mas dinzz",
     "tiktok si yusuf",
     "jack ganteng",
@@ -1728,3 +1717,562 @@ if (gcAvatarBtn && gcAvatarInput) {
 document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") closeGroupChat();
 });
+
+/* ===========================
+   FFKIPAS VIP — AUTO ORDER + PRIVATE CHAT
+   Setiap pembeli = 1 room chat terpisah (Firebase)
+=========================== */
+const VIP_PRICE = 20000; // ubah harga di sini
+const VIP_PRODUCT = "FFKIPAS VIP";
+const VIP_LS_KEY = "ff_vip_orders";
+
+let vipPending = null; // { orderId, name, contact, note, price }
+let vipActiveOrderId = null;
+let vipActiveName = "";
+let vipMsgUnsub = null;
+let vipForceScroll = true;
+let vipLastSend = 0;
+
+function formatRp(n) {
+    return "Rp" + Number(n || 0).toLocaleString("id-ID");
+}
+
+function genVipOrderId() {
+    const t = Date.now().toString(36).toUpperCase();
+    const r = Math.random().toString(36).slice(2, 6).toUpperCase();
+    return "VIP-" + t.slice(-5) + r;
+}
+
+function loadVipOrders() {
+    try {
+        return JSON.parse(localStorage.getItem(VIP_LS_KEY) || "[]");
+    } catch (e) {
+        return [];
+    }
+}
+
+function saveVipOrderLocal(order) {
+    const list = loadVipOrders().filter(o => o.orderId !== order.orderId);
+    list.unshift(order);
+    localStorage.setItem(VIP_LS_KEY, JSON.stringify(list.slice(0, 30)));
+}
+
+function getVipOrderLocal(orderId) {
+    return loadVipOrders().find(o => o.orderId === orderId) || null;
+}
+
+const vipPopup = document.getElementById("vipPopup");
+const vipStepForm = document.getElementById("vipStepForm");
+const vipStepPay = document.getElementById("vipStepPay");
+const openVipOrderBtn = document.getElementById("openVipOrder");
+const closeVipPopup = document.getElementById("closeVipPopup");
+const vipContinueBtn = document.getElementById("vipContinueBtn");
+const vipPaidBtn = document.getElementById("vipPaidBtn");
+const vipBackBtn = document.getElementById("vipBackBtn");
+const vipPriceLabel = document.getElementById("vipPriceLabel");
+const vipPayAmount = document.getElementById("vipPayAmount");
+const vipOrderIdLabel = document.getElementById("vipOrderIdLabel");
+
+const vipChatPanel = document.getElementById("vipChatPanel");
+const vipChatOverlay = document.getElementById("vipChatOverlay");
+const vipChatClose = document.getElementById("vipChatClose");
+const vipMessages = document.getElementById("vipMessages");
+const vipForm = document.getElementById("vipForm");
+const vipInput = document.getElementById("vipInput");
+const vipImageBtn = document.getElementById("vipImageBtn");
+const vipImageInput = document.getElementById("vipImageInput");
+const vipChatTitle = document.getElementById("vipChatTitle");
+const vipChatSub = document.getElementById("vipChatSub");
+const vipBannerText = document.getElementById("vipBannerText");
+
+const vipListPopup = document.getElementById("vipListPopup");
+const closeVipList = document.getElementById("closeVipList");
+const vipOrdersList = document.getElementById("vipOrdersList");
+const openVipChatsBtn = document.getElementById("openVipChatsBtn");
+const vipNewOrderFromList = document.getElementById("vipNewOrderFromList");
+
+if (vipPriceLabel) vipPriceLabel.textContent = Number(VIP_PRICE).toLocaleString("id-ID");
+if (vipPayAmount) vipPayAmount.textContent = formatRp(VIP_PRICE);
+
+function showVipStep(step) {
+    if (vipStepForm) vipStepForm.style.display = step === "form" ? "block" : "none";
+    if (vipStepPay) vipStepPay.style.display = step === "pay" ? "block" : "none";
+}
+
+function openVipOrderPopup() {
+    if (typeof closeChatMenu === "function") closeChatMenu();
+    if (typeof closeGroupChat === "function") closeGroupChat();
+    closeVipChat();
+    vipPending = null;
+    showVipStep("form");
+    const nameEl = document.getElementById("vipNameInput");
+    const contactEl = document.getElementById("vipContactInput");
+    const noteEl = document.getElementById("vipNoteInput");
+    if (nameEl) nameEl.value = "";
+    if (contactEl) contactEl.value = "";
+    if (noteEl) noteEl.value = "";
+    if (vipPopup) vipPopup.classList.add("active");
+    setTimeout(() => nameEl && nameEl.focus(), 80);
+}
+
+function closeVipOrderPopup() {
+    if (vipPopup) vipPopup.classList.remove("active");
+}
+
+if (openVipOrderBtn) {
+    openVipOrderBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openVipOrderPopup();
+    });
+}
+if (closeVipPopup) closeVipPopup.onclick = closeVipOrderPopup;
+if (vipPopup) {
+    vipPopup.onclick = (e) => {
+        if (e.target === vipPopup) closeVipOrderPopup();
+    };
+}
+
+if (vipContinueBtn) {
+    vipContinueBtn.onclick = () => {
+        const name = (document.getElementById("vipNameInput")?.value || "").trim().slice(0, 24);
+        const contact = (document.getElementById("vipContactInput")?.value || "").trim().slice(0, 40);
+        const note = (document.getElementById("vipNoteInput")?.value || "").trim().slice(0, 80);
+        if (name.length < 2) {
+            showToast("Nama", "Isi nama minimal 2 huruf", "warning");
+            return;
+        }
+        if (contact.length < 5) {
+            showToast("Kontak", "Isi No. WA / Telegram", "warning");
+            return;
+        }
+        const orderId = genVipOrderId();
+        vipPending = {
+            orderId,
+            name,
+            contact,
+            note,
+            price: VIP_PRICE,
+            product: VIP_PRODUCT,
+            createdAt: Date.now()
+        };
+        if (vipOrderIdLabel) vipOrderIdLabel.textContent = orderId;
+        if (vipPayAmount) vipPayAmount.textContent = formatRp(VIP_PRICE);
+        showVipStep("pay");
+    };
+}
+
+if (vipBackBtn) {
+    vipBackBtn.onclick = () => showVipStep("form");
+}
+
+async function createVipOrderInFirebase(order) {
+    if (!gcDb || !gcReady) {
+        // offline fallback — masih bisa chat lokal lewat localStorage only meta
+        return { ok: true, offline: true };
+    }
+    try {
+        const meta = {
+            orderId: order.orderId,
+            name: order.name,
+            contact: order.contact,
+            note: order.note || "",
+            price: order.price,
+            product: order.product,
+            status: "waiting_payment",
+            createdAt: order.createdAt || Date.now(),
+            paidAt: Date.now()
+        };
+        await gcDb.ref("ffkipas_vip_orders/" + order.orderId).set(meta);
+
+        // system message pertama
+        const sys = {
+            name: "SYSTEM",
+            text: "Order " + order.orderId + " dibuat.\nProduk: " + order.product +
+                "\nHarga: " + formatRp(order.price) +
+                "\nNama: " + order.name +
+                "\nKontak: " + order.contact +
+                (order.note ? "\nCatatan: " + order.note : "") +
+                "\n\nSilakan kirim bukti transfer di chat ini. Admin akan membalas di room privat ini.",
+            ts: Date.now(),
+            system: true
+        };
+        await gcDb.ref("ffkipas_vip_chat/" + order.orderId + "/messages").push(sys);
+        return { ok: true };
+    } catch (err) {
+        console.error("createVipOrder", err);
+        return { ok: false, error: err };
+    }
+}
+
+if (vipPaidBtn) {
+    vipPaidBtn.onclick = async () => {
+        if (!vipPending) {
+            showToast("Order", "Data order hilang, ulangi dari awal", "error");
+            showVipStep("form");
+            return;
+        }
+        vipPaidBtn.disabled = true;
+        vipPaidBtn.innerHTML = "⏳ Membuat order...";
+
+        const order = { ...vipPending, status: "waiting_payment", paidClaimAt: Date.now() };
+        const res = await createVipOrderInFirebase(order);
+
+        if (!res.ok) {
+            vipPaidBtn.disabled = false;
+            vipPaidBtn.innerHTML = "Saya Sudah Bayar — Buka Chat";
+            showToast("Gagal", "Tidak bisa membuat order. Cek koneksi / Firebase.", "error");
+            return;
+        }
+
+        saveVipOrderLocal({
+            orderId: order.orderId,
+            name: order.name,
+            contact: order.contact,
+            note: order.note || "",
+            price: order.price,
+            product: order.product,
+            status: "waiting_payment",
+            createdAt: order.createdAt,
+            date: new Date().toLocaleString("id-ID")
+        });
+
+        // history local (riwayat)
+        try {
+            const history = JSON.parse(localStorage.getItem("trxHistory") || "[]");
+            history.unshift({
+                invoice: order.orderId,
+                game: VIP_PRODUCT,
+                uid: order.contact,
+                item: VIP_PRODUCT,
+                pay: "QRIS",
+                price: formatRp(order.price),
+                date: new Date().toLocaleString("id-ID")
+            });
+            localStorage.setItem("trxHistory", JSON.stringify(history));
+        } catch (e) {}
+
+        vipPaidBtn.disabled = false;
+        vipPaidBtn.innerHTML = "Saya Sudah Bayar — Buka Chat";
+        closeVipOrderPopup();
+        showToast("Order dibuat", order.orderId + " · chat privat dibuka");
+        openVipChat(order.orderId, order.name);
+        vipPending = null;
+    };
+}
+
+function scrollVipToBottom(smooth) {
+    if (!vipMessages) return;
+    requestAnimationFrame(() => {
+        vipMessages.scrollTop = vipMessages.scrollHeight;
+        setTimeout(() => {
+            if (vipMessages) vipMessages.scrollTop = vipMessages.scrollHeight;
+        }, smooth ? 80 : 30);
+    });
+}
+
+function renderVipMessages(list) {
+    if (!vipMessages) return;
+    if (!list || !list.length) {
+        vipMessages.innerHTML = '<div class="gc-empty">Belum ada pesan. Kirim bukti transfer di sini.</div>';
+        return;
+    }
+    const wasNear = vipForceScroll ||
+        (vipMessages.scrollHeight - vipMessages.scrollTop - vipMessages.clientHeight < 120);
+
+    vipMessages.innerHTML = list.map(m => {
+        if (m.system) {
+            return `<div class="vip-sys-msg">${escapeHtml(m.text || "").replace(/\n/g, "<br>")}</div>`;
+        }
+        const me = m.name === vipActiveName ? " me" : "";
+        const displayName = m.name || "Anon";
+        const badge = (typeof adminBadgeHtml === "function") ? adminBadgeHtml(displayName) : "";
+        let body = "";
+        if (m.image) {
+            body += `<img class="gc-msg-img" src="${escapeHtml(m.image)}" alt="gambar" loading="lazy" onclick="window.open(this.src,'_blank')">`;
+        }
+        if (m.text) {
+            body += `<div class="gc-msg-text">${escapeHtml(m.text)}</div>`;
+        }
+        if (!body) body = `<div class="gc-msg-text"></div>`;
+        return `<div class="gc-msg-row${me}">
+            ${typeof avatarHtml === "function" ? avatarHtml(m) : `<div class="gc-msg-avatar placeholder">${escapeHtml((displayName[0] || "?").toUpperCase())}</div>`}
+            <div class="gc-msg">
+                <div class="gc-msg-name">${escapeHtml(displayName)}${badge}</div>
+                ${body}
+                <div class="gc-msg-time">${typeof formatTime === "function" ? formatTime(m.ts) : ""}</div>
+            </div>
+        </div>`;
+    }).join("");
+
+    if (wasNear) {
+        scrollVipToBottom(false);
+        vipForceScroll = false;
+    }
+}
+
+function unsubVipMessages() {
+    if (vipMsgUnsub && typeof vipMsgUnsub === "function") {
+        try { vipMsgUnsub(); } catch (e) {}
+    }
+    vipMsgUnsub = null;
+}
+
+function listenVipMessages(orderId) {
+    unsubVipMessages();
+    if (!gcDb || !gcReady) {
+        renderVipMessages([]);
+        return;
+    }
+    const ref = gcDb.ref("ffkipas_vip_chat/" + orderId + "/messages").orderByChild("ts").limitToLast(100);
+    const handler = (snap) => {
+        const val = snap.val() || {};
+        const list = Object.keys(val).map(k => ({ id: k, ...val[k] }))
+            .sort((a, b) => (a.ts || 0) - (b.ts || 0));
+        renderVipMessages(list);
+    };
+    ref.on("value", handler);
+    vipMsgUnsub = () => ref.off("value", handler);
+}
+
+function openVipChat(orderId, name) {
+    if (typeof closeChatMenu === "function") closeChatMenu();
+    if (typeof closeGroupChat === "function") closeGroupChat();
+    closeVipOrderPopup();
+    if (vipListPopup) vipListPopup.classList.remove("active");
+
+    vipActiveOrderId = orderId;
+    const local = getVipOrderLocal(orderId);
+    vipActiveName = name || local?.name || localStorage.getItem("ff_chat_name") || "User";
+
+    if (vipChatTitle) vipChatTitle.textContent = "VIP · " + orderId;
+    if (vipChatSub) vipChatSub.textContent = vipActiveName;
+    if (vipBannerText) {
+        vipBannerText.textContent = "Order " + orderId + " · " + formatRp(local?.price || VIP_PRICE) + " · kirim bukti di chat";
+    }
+
+    vipForceScroll = true;
+    if (vipChatPanel) vipChatPanel.classList.add("show");
+    if (vipChatOverlay) vipChatOverlay.classList.add("show");
+    if (typeof setChatLabelVisible === "function") setChatLabelVisible(false);
+
+    listenVipMessages(orderId);
+    setTimeout(() => vipInput && vipInput.focus(), 120);
+}
+
+function closeVipChat() {
+    if (vipChatPanel) vipChatPanel.classList.remove("show");
+    if (vipChatOverlay) vipChatOverlay.classList.remove("show");
+    unsubVipMessages();
+    vipActiveOrderId = null;
+    if (typeof setChatLabelVisible === "function") {
+        const gcOpen = document.getElementById("groupChatPanel")?.classList.contains("show");
+        setChatLabelVisible(!gcOpen);
+    }
+}
+
+if (vipChatClose) vipChatClose.onclick = closeVipChat;
+if (vipChatOverlay) vipChatOverlay.onclick = closeVipChat;
+
+if (vipForm) {
+    vipForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        if (!vipActiveOrderId) return;
+        if (!gcReady || !gcDb) {
+            showToast("Belum siap", "Firebase belum terhubung", "warning");
+            return;
+        }
+        const text = (vipInput?.value || "").trim().slice(0, 300);
+        if (!text) return;
+        const now = Date.now();
+        if (now - vipLastSend < 1000) {
+            showToast("Pelan-pelan", "Jangan spam ya", "warning");
+            return;
+        }
+        vipLastSend = now;
+        const payload = {
+            name: vipActiveName || "User",
+            text,
+            ts: now
+        };
+        const av = localStorage.getItem("ff_chat_avatar");
+        if (av) payload.avatar = av;
+
+        vipForceScroll = true;
+        gcDb.ref("ffkipas_vip_chat/" + vipActiveOrderId + "/messages").push(payload).then(() => {
+            if (vipInput) vipInput.value = "";
+            // update order activity
+            gcDb.ref("ffkipas_vip_orders/" + vipActiveOrderId).update({ lastMsgAt: now }).catch(() => {});
+            scrollVipToBottom(false);
+        }).catch((err) => {
+            console.error(err);
+            showToast("Gagal", "Pesan tidak terkirim", "error");
+        });
+    });
+}
+
+if (vipImageBtn && vipImageInput) {
+    vipImageBtn.addEventListener("click", () => {
+        if (!vipActiveOrderId) return;
+        if (!IMGBB_API_KEY || IMGBB_API_KEY.indexOf("PASTE_") === 0) {
+            showToast("Belum siap", "IMGBB_API_KEY belum diisi", "warning");
+            return;
+        }
+        vipImageInput.click();
+    });
+    vipImageInput.addEventListener("change", async () => {
+        const file = vipImageInput.files && vipImageInput.files[0];
+        vipImageInput.value = "";
+        if (!file || !vipActiveOrderId) return;
+        if (!gcReady || !gcDb) {
+            showToast("Belum siap", "Chat belum terhubung", "warning");
+            return;
+        }
+        if (!file.type.startsWith("image/")) {
+            showToast("File", "Cuma boleh gambar", "warning");
+            return;
+        }
+        if (file.size > 3 * 1024 * 1024) {
+            showToast("Terlalu besar", "Maksimal 3MB", "warning");
+            return;
+        }
+        const now = Date.now();
+        if (now - vipLastSend < 1500) {
+            showToast("Pelan-pelan", "Jangan spam ya", "warning");
+            return;
+        }
+        vipLastSend = now;
+        vipImageBtn.disabled = true;
+        const oldIcon = vipImageBtn.innerHTML;
+        vipImageBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+        try {
+            const formData = new FormData();
+            formData.append("image", file);
+            const res = await fetch("https://api.imgbb.com/1/upload?key=" + encodeURIComponent(IMGBB_API_KEY), {
+                method: "POST",
+                body: formData
+            });
+            const json = await res.json();
+            if (!json.success || !json.data || !json.data.url) {
+                throw new Error(json.error?.message || "Upload gagal");
+            }
+            const payload = {
+                name: vipActiveName || "User",
+                text: "",
+                image: json.data.url,
+                ts: Date.now()
+            };
+            const av = localStorage.getItem("ff_chat_avatar");
+            if (av) payload.avatar = av;
+            vipForceScroll = true;
+            await gcDb.ref("ffkipas_vip_chat/" + vipActiveOrderId + "/messages").push(payload);
+            gcDb.ref("ffkipas_vip_orders/" + vipActiveOrderId).update({ lastMsgAt: Date.now() }).catch(() => {});
+            scrollVipToBottom(false);
+        } catch (err) {
+            console.error(err);
+            showToast("Gagal", "Upload gambar gagal", "error");
+        }
+        vipImageBtn.disabled = false;
+        vipImageBtn.innerHTML = oldIcon;
+    });
+}
+
+function renderVipOrdersList() {
+    if (!vipOrdersList) return;
+    const list = loadVipOrders();
+    if (!list.length) {
+        vipOrdersList.innerHTML = '<div class="vip-orders-empty">Belum ada order VIP.<br>Order dulu biar chat privat muncul di sini.</div>';
+        return;
+    }
+    vipOrdersList.innerHTML = list.map(o => `
+        <div class="vip-order-item" data-id="${escapeHtml(o.orderId)}" data-name="${escapeHtml(o.name || "")}">
+            <div class="voi-icon"><i class="fa-solid fa-crown"></i></div>
+            <div>
+                <strong>${escapeHtml(o.orderId)}</strong>
+                <span>${escapeHtml(o.name || "-")} · ${formatRp(o.price || VIP_PRICE)} · ${escapeHtml(o.date || "")}</span>
+            </div>
+        </div>
+    `).join("");
+    vipOrdersList.querySelectorAll(".vip-order-item").forEach(el => {
+        el.addEventListener("click", () => {
+            const id = el.getAttribute("data-id");
+            const nm = el.getAttribute("data-name");
+            if (vipListPopup) vipListPopup.classList.remove("active");
+            openVipChat(id, nm);
+        });
+    });
+}
+
+function openVipList() {
+    if (typeof closeChatMenu === "function") closeChatMenu();
+    if (typeof closeGroupChat === "function") closeGroupChat();
+    closeVipChat();
+    renderVipOrdersList();
+    if (vipListPopup) vipListPopup.classList.add("active");
+}
+
+if (openVipChatsBtn) {
+    openVipChatsBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openVipList();
+    });
+}
+if (closeVipList) closeVipList.onclick = () => vipListPopup && vipListPopup.classList.remove("active");
+if (vipListPopup) {
+    vipListPopup.onclick = (e) => {
+        if (e.target === vipListPopup) vipListPopup.classList.remove("active");
+    };
+}
+if (vipNewOrderFromList) {
+    vipNewOrderFromList.onclick = () => {
+        if (vipListPopup) vipListPopup.classList.remove("active");
+        openVipOrderPopup();
+    };
+}
+
+// ESC juga nutup VIP UI
+document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+        closeVipOrderPopup();
+        closeVipChat();
+        if (vipListPopup) vipListPopup.classList.remove("active");
+    }
+});
+
+// unlockPage juga bersihkan VIP overlays
+const _unlockPageOrig = typeof unlockPage === "function" ? unlockPage : null;
+if (_unlockPageOrig) {
+    // patch via ids already covered partially — add VIP classes cleanup
+}
+
+const vipJoinIdInput = document.getElementById("vipJoinIdInput");
+const vipJoinIdBtn = document.getElementById("vipJoinIdBtn");
+if (vipJoinIdBtn) {
+    vipJoinIdBtn.onclick = async () => {
+        const id = (vipJoinIdInput?.value || "").trim().toUpperCase();
+        if (!id || id.length < 6) {
+            showToast("Order ID", "Masukkan kode order yang valid", "warning");
+            return;
+        }
+        let name = localStorage.getItem("ff_chat_name") || "Admin";
+        // coba ambil meta dari Firebase
+        if (gcDb && gcReady) {
+            try {
+                const snap = await gcDb.ref("ffkipas_vip_orders/" + id).once("value");
+                const meta = snap.val();
+                if (meta && meta.name) {
+                    // admin reply pakai nama chat sendiri; buyer name only for display
+                    if (vipChatSub) vipChatSub.textContent = meta.name + " · " + (meta.contact || "");
+                } else if (!meta) {
+                    showToast("Tidak ditemukan", "Order " + id + " tidak ada di server", "warning");
+                    return;
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        if (vipListPopup) vipListPopup.classList.remove("active");
+        openVipChat(id, name);
+    };
+}

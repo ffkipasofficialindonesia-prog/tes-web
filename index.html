@@ -13,7 +13,7 @@
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800;900&family=Oxanium:wght@500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
-<link href="style.css?v=20260802b" rel="stylesheet"/>
+<link href="style.css?v=20260805f" rel="stylesheet"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 </head>
 <body>
@@ -44,7 +44,6 @@
     <a href="#download" class="side-link"><i class="fa-solid fa-download"></i> Download</a>
     <a href="#topup" class="side-link"><i class="fa-solid fa-gem"></i> Top Up</a>
     <a href="#accountCheck" class="side-link"><i class="fa-solid fa-gamepad"></i> Cek Akun FF</a>
-    <a href="#pricecalc" class="side-link"><i class="fa-solid fa-calculator"></i> Kalkulator</a>
     <a href="#history" class="side-link"><i class="fa-solid fa-clock-rotate-left"></i> Riwayat</a>
     <a href="#faq" class="side-link"><i class="fa-solid fa-circle-question"></i> FAQ</a>
     <div class="side-menu-footer">
@@ -82,13 +81,6 @@
                 <div>
                     <strong>Cek Akun Free Fire</strong>
                     <span>Lihat detail akun via UID</span>
-                </div>
-            </button>
-            <button type="button" class="search-item" data-target="pricecalc">
-                <i class="fa-solid fa-calculator"></i>
-                <div>
-                    <strong>Kalkulator Harga</strong>
-                    <span>Estimasi harga akun FF</span>
                 </div>
             </button>
             <button type="button" class="search-item" data-target="history">
@@ -151,13 +143,13 @@
             <p>Untuk LOCALCONFIG</p>
             <a class="btn-primary" href="https://www.mediafire.com/file/yq1in0o2zk83izl/MT+Manager.apk/file">Download</a>
         </div>
-        <div class="download-card">
+        <div class="download-card vip-card">
             <div class="icon">
-                <img src="assets/icon/calculator.png" alt="Calculator">
+                <img src="assets/icon/ffkipas.png" alt="FFKIPAS VIP">
             </div>
-            <h3>KALKULATOR</h3>
-            <p>Estimasi Harga Akun</p>
-            <a href="#pricecalc" class="btn-primary calc-btn">Buka</a>
+            <h3>FFKIPAS VIP</h3>
+            <p>Akses VIP + Akses Privat</p>
+            <button type="button" class="btn-primary" id="openVipOrder">BELI FFKIPAS</button>
         </div>
     </div>
 </section>
@@ -229,18 +221,6 @@
     <div id="accountResult"></div>
 </section>
 
-<section id="pricecalc">
-    <h2 class="calc-title">
-        <img src="assets/icon/calculator.png" alt="Calculator">
-        HITUNG HARGA AKUN FF KAMU
-    </h2>
-    <p class="calc-desc">Masukkan jumlah poin prime kamu.</p>
-    <div class="calc-box">
-        <input type="number" id="diamondInput" placeholder="Contoh: 1000">
-        <button id="calcBtn">Hitung Harga Akun</button>
-        <h3 id="calcResult">Rp0</h3>
-    </div>
-</section>
 
 <section id="stats">
     <div class="stat">
@@ -376,6 +356,79 @@
 <script src="https://pl29896662.effectivecpmnetwork.com/20/06/c7/2006c7c18b1bd25a644a2f8799d58457.js"></script>
 
 
+<!-- VIP ORDER POPUP -->
+<div class="popup" id="vipPopup">
+    <div class="popup-box vip-popup-box">
+        <span class="close" id="closeVipPopup">×</span>
+        <div class="vip-step" id="vipStepForm">
+            <div class="vip-badge"><i class="fa-solid fa-crown"></i> FFKIPAS VIP</div>
+            <h2>Order FFKIPAS VIP</h2>
+            <p class="vip-desc">Isi data di bawah, bayar QRIS, lalu chat privat otomatis terbuka (1 room per order).</p>
+            <div class="vip-price-tag">Rp<span id="vipPriceLabel">20.000</span></div>
+            <input id="vipNameInput" type="text" maxlength="24" placeholder="Nama panggilan kamu" autocomplete="off"/>
+            <input id="vipContactInput" type="text" maxlength="40" placeholder="No. WhatsApp / Telegram" autocomplete="off"/>
+            <input id="vipNoteInput" type="text" maxlength="80" placeholder="Catatan (opsional)" autocomplete="off"/>
+            <button type="button" class="buy-btn" id="vipContinueBtn">Lanjut ke Pembayaran QRIS</button>
+        </div>
+        <div class="vip-step" id="vipStepPay" style="display:none">
+            <div class="vip-badge"><i class="fa-solid fa-qrcode"></i> Pembayaran QRIS</div>
+            <h2>Scan QRIS</h2>
+            <p class="vip-order-meta">Order ID: <strong id="vipOrderIdLabel">-</strong></p>
+            <p class="vip-order-meta">Total: <strong id="vipPayAmount">Rp20.000</strong> · QRIS</p>
+            <div class="vip-qris-wrap">
+                <img src="assets/payment/qris-vip.jpeg" alt="QRIS FFKIPAS VIP" id="vipQrisImg" class="vip-qris-img"/>
+            </div>
+            <p class="vip-pay-hint">Setelah transfer, tekan tombol di bawah. Chat privat akan terbuka otomatis.</p>
+            <button type="button" class="buy-btn" id="vipPaidBtn">Saya Sudah Bayar — Buka Chat</button>
+            <button type="button" class="vip-back-btn" id="vipBackBtn">← Kembali</button>
+        </div>
+    </div>
+</div>
+
+<!-- VIP PRIVATE CHAT (1 room per order) -->
+<div class="group-chat-overlay" id="vipChatOverlay"></div>
+<div class="group-chat-panel vip-chat-panel" id="vipChatPanel">
+    <div class="gc-header">
+        <div class="gc-header-left">
+            <div class="gc-avatar vip-avatar"><i class="fa-solid fa-crown"></i></div>
+            <div>
+                <strong id="vipChatTitle">CHAT VIP</strong>
+                <span id="vipChatSub">Order privat</span>
+            </div>
+        </div>
+        <div class="gc-header-actions">
+            <button type="button" class="gc-close" id="vipChatClose" aria-label="Tutup">×</button>
+        </div>
+    </div>
+    <div class="vip-order-banner" id="vipOrderBanner">
+        <span id="vipBannerText">Order VIP · menunggu verifikasi</span>
+    </div>
+    <div class="gc-messages" id="vipMessages">
+        <div class="gc-empty">Belum ada pesan.</div>
+    </div>
+    <form class="gc-input-bar" id="vipForm">
+        <input type="file" id="vipImageInput" accept="image/*" hidden>
+        <button type="button" id="vipImageBtn" title="Kirim gambar / bukti transfer"><i class="fa-solid fa-image"></i></button>
+        <input type="text" id="vipInput" maxlength="300" placeholder="Tulis pesan ke admin..." autocomplete="off">
+        <button type="submit" id="vipSend"><i class="fa-solid fa-paper-plane"></i></button>
+    </form>
+</div>
+
+<!-- VIP ORDERS LIST (my private rooms) -->
+<div class="popup" id="vipListPopup">
+    <div class="popup-box vip-list-box">
+        <span class="close" id="closeVipList">×</span>
+        <h2><i class="fa-solid fa-crown"></i> Chat VIP Saya</h2>
+        <p class="vip-desc">Setiap order punya ruang chat sendiri.</p>
+        <div id="vipOrdersList" class="vip-orders-list"></div>
+        <div class="vip-join-by-id">
+            <input type="text" id="vipJoinIdInput" maxlength="24" placeholder="Kode Order (admin / recover)" autocomplete="off"/>
+            <button type="button" id="vipJoinIdBtn">Buka</button>
+        </div>
+        <button type="button" class="buy-btn" id="vipNewOrderFromList">+ Order VIP Baru</button>
+    </div>
+</div>
+
 <!-- GROUP CHAT ROOM -->
 <div class="group-chat-overlay" id="groupChatOverlay"></div>
 <div class="group-chat-panel" id="groupChatPanel">
@@ -447,6 +500,14 @@
                 </div>
                 <i class="fa-solid fa-bolt chat-arrow"></i>
             </button>
+            <button type="button" class="chat-item chat-vip" id="openVipChatsBtn">
+                <div class="chat-item-icon"><i class="fa-solid fa-crown"></i></div>
+                <div class="chat-item-text">
+                    <strong>Chat VIP Saya</strong>
+                    <span>Order & support privat</span>
+                </div>
+                <i class="fa-solid fa-bolt chat-arrow"></i>
+            </button>
             <a href="https://wa.me/6283138876438" target="_blank" class="chat-item chat-wa">
                 <div class="chat-item-icon"><i class="fa-brands fa-whatsapp"></i></div>
                 <div class="chat-item-text">
@@ -490,6 +551,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
-<script src="script.js?v=20260802b"></script>
+<script src="script.js?v=20260805f"></script>
 </body>
 </html>
