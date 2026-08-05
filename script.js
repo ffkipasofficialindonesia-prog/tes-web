@@ -1887,7 +1887,6 @@ async function createVipOrderInFirebase(order) {
             price: order.price,
             product: order.product,
             status: "waiting_payment",
-            hasProof: false,
             createdAt: order.createdAt || Date.now(),
             paidAt: Date.now()
         };
@@ -2044,64 +2043,6 @@ function listenVipMessages(orderId) {
 }
 
 
-let vipHasProof = false;
-
-function applyVipChatLock() {
-    const admin = isCurrentUserAdmin();
-    const gate = document.getElementById("vipProofGate");
-    const form = document.getElementById("vipForm");
-    const unlocked = admin || vipHasProof;
-
-    if (gate) gate.style.display = unlocked ? "none" : "flex";
-    if (form) form.classList.toggle("vip-locked", !unlocked);
-
-    if (vipInput) {
-        vipInput.disabled = !unlocked;
-        vipInput.placeholder = unlocked
-            ? "Tulis pesan ke admin..."
-            : "Upload bukti TF dulu untuk chat...";
-    }
-    if (vipSend) vipSend.disabled = !unlocked;
-
-    // image button always allowed for buyer (untuk bukti) dan admin
-    if (vipImageBtn) {
-        vipImageBtn.disabled = false;
-        vipImageBtn.title = unlocked ? "Kirim gambar" : "Upload bukti transfer (wajib)";
-    }
-}
-
-async function markVipProofUploaded(imageUrl) {
-    if (!vipActiveOrderId || !gcDb || !gcReady) return;
-    const now = Date.now();
-    try {
-        await gcDb.ref("ffkipas_vip_orders/" + vipActiveOrderId).update({
-            hasProof: true,
-            proofUrl: imageUrl || "",
-            proofAt: now
-        });
-        vipHasProof = true;
-        applyVipChatLock();
-        // system notice
-        await gcDb.ref("ffkipas_vip_chat/" + vipActiveOrderId + "/messages").push({
-            name: "SYSTEM",
-            text: "✅ Bukti transfer diterima.\nSekarang kamu bisa chat dengan admin.",
-            ts: now + 1,
-            system: true
-        });
-        showToast("Bukti TF", "Upload berhasil. Silakan chat admin.");
-        try {
-            const list = loadVipOrders();
-            const i = list.findIndex(o => o.orderId === vipActiveOrderId);
-            if (i >= 0) {
-                list[i].hasProof = true;
-                localStorage.setItem(VIP_LS_KEY, JSON.stringify(list));
-            }
-        } catch (e) {}
-    } catch (e) {
-        console.error(e);
-    }
-}
-
 function openVipChat(orderId, name) {
     if (typeof closeChatMenu === "function") closeChatMenu();
     if (typeof closeGroupChat === "function") closeGroupChat();
@@ -2111,8 +2052,6 @@ function openVipChat(orderId, name) {
     vipActiveOrderId = orderId;
     const local = getVipOrderLocal(orderId);
     const adminMode = isCurrentUserAdmin();
-    vipHasProof = !!(local && local.hasProof);
-    applyVipChatLock();
     // Admin kirim pesan pakai nama admin; buyer pakai nama order
     if (adminMode) {
         vipActiveName = (typeof gcName !== "undefined" && gcName) || localStorage.getItem("ff_chat_name") || name || "Admin";
@@ -2134,8 +2073,6 @@ function openVipChat(orderId, name) {
                 const st = statusLabel(meta.status).text;
                 vipBannerText.textContent = orderId + " · " + (meta.name || "-") + " · " + (meta.contact || "-") + " · " + formatRp(meta.price || VIP_PRICE) + " · " + st;
             }
-            vipHasProof = !!(meta.hasProof || meta.proofUrl);
-            applyVipChatLock();
             syncVipAdminActionButtons(meta.status);
         }).catch(() => {});
     }
@@ -2180,10 +2117,6 @@ if (vipForm) {
         if (!vipActiveOrderId) return;
         if (!gcReady || !gcDb) {
             showToast("Belum siap", "Firebase belum terhubung", "warning");
-            return;
-        }
-        if (!isCurrentUserAdmin() && !vipHasProof) {
-            showToast("Bukti TF", "Upload bukti transfer dulu baru bisa chat", "warning");
             return;
         }
         const text = (vipInput?.value || "").trim().slice(0, 300);
@@ -2268,31 +2201,9 @@ if (vipImageBtn && vipImageInput) {
             };
             const av = localStorage.getItem("ff_chat_avatar");
             if (av) payload.avatar = av;
-            const needProof = !isCurrentUserAdmin() && !vipHasProof;
-            if (needProof) {
-                payload.text = payload.text || "Bukti transfer";
-                payload.isProof = true;
-            }
             vipForceScroll = true;
             await gcDb.ref("ffkipas_vip_chat/" + vipActiveOrderId + "/messages").push(payload);
-            const updates = { lastMsgAt: Date.now() };
-            if (needProof) {
-                updates.hasProof = true;
-                updates.proofUrl = json.data.url;
-                updates.proofAt = Date.now();
-            }
-            await gcDb.ref("ffkipas_vip_orders/" + vipActiveOrderId).update(updates);
-            if (needProof) {
-                vipHasProof = true;
-                applyVipChatLock();
-                await gcDb.ref("ffkipas_vip_chat/" + vipActiveOrderId + "/messages").push({
-                    name: "SYSTEM",
-                    text: "✅ Bukti transfer diterima.\nSekarang kamu bisa chat dengan admin.",
-                    ts: Date.now() + 1,
-                    system: true
-                });
-                showToast("Bukti TF", "Upload berhasil. Silakan chat admin.");
-            }
+            gcDb.ref("ffkipas_vip_orders/" + vipActiveOrderId).update({ lastMsgAt: Date.now() }).catch(() => {});
             scrollVipToBottom(false);
         } catch (err) {
             console.error(err);
@@ -2607,17 +2518,6 @@ if (vipJoinIdBtn) {
 // Admin VIP inbox auto-listen saat nama admin sudah tersimpan
 
 
-const vipProofUploadBtn = document.getElementById("vipProofUploadBtn");
-if (vipProofUploadBtn && vipImageInput) {
-    vipProofUploadBtn.addEventListener("click", () => {
-        if (!vipActiveOrderId) return;
-        if (!IMGBB_API_KEY || IMGBB_API_KEY.indexOf("PASTE_") === 0) {
-            showToast("Belum siap", "IMGBB_API_KEY belum diisi", "warning");
-            return;
-        }
-        vipImageInput.click();
-    });
-}
 
 const vipBtnProcess = document.getElementById("vipBtnProcess");
 const vipBtnDone = document.getElementById("vipBtnDone");
