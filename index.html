@@ -13,7 +13,7 @@
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800;900&family=Oxanium:wght@500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
-<link href="style.css?v=20260805g" rel="stylesheet"/>
+<link href="style.css?v=20260805h" rel="stylesheet"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 </head>
 <body>
@@ -403,6 +403,14 @@
     <div class="vip-order-banner" id="vipOrderBanner">
         <span id="vipBannerText">Order VIP · menunggu verifikasi</span>
     </div>
+    <div class="vip-admin-actions" id="vipAdminActions" style="display:none">
+        <button type="button" class="vip-act-btn process" id="vipBtnProcess" title="Tandai sedang diproses">
+            <i class="fa-solid fa-spinner"></i> Pesanan diproses
+        </button>
+        <button type="button" class="vip-act-btn done" id="vipBtnDone" title="Tandai selesai">
+            <i class="fa-solid fa-check"></i> Pesanan selesai
+        </button>
+    </div>
     <div class="gc-messages" id="vipMessages">
         <div class="gc-empty">Belum ada pesan.</div>
     </div>
@@ -551,6 +559,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
-<script src="script.js?v=20260805g"></script>
+<script src="script.js?v=20260805h"></script>
 </body>
 </html>

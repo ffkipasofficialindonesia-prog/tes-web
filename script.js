@@ -2082,6 +2082,15 @@ function openVipChat(orderId, name) {
     if (vipChatOverlay) vipChatOverlay.classList.add("show");
     if (typeof setChatLabelVisible === "function") setChatLabelVisible(false);
 
+    // tombol status khusus admin
+    syncVipAdminActionButtons(local?.status || "waiting_payment");
+    if (gcDb && gcReady) {
+        gcDb.ref("ffkipas_vip_orders/" + orderId).once("value").then((snap) => {
+            const meta = snap.val();
+            if (meta) syncVipAdminActionButtons(meta.status);
+        }).catch(() => {});
+    }
+
     listenVipMessages(orderId);
     setTimeout(() => vipInput && vipInput.focus(), 120);
 }
@@ -2089,6 +2098,8 @@ function openVipChat(orderId, name) {
 function closeVipChat() {
     if (vipChatPanel) vipChatPanel.classList.remove("show");
     if (vipChatOverlay) vipChatOverlay.classList.remove("show");
+    const bar = document.getElementById("vipAdminActions");
+    if (bar) bar.style.display = "none";
     unsubVipMessages();
     vipActiveOrderId = null;
     if (typeof setChatLabelVisible === "function") {
@@ -2222,8 +2233,77 @@ function formatVipDate(ts) {
 }
 
 function statusLabel(st) {
-    if (st === "paid" || st === "done" || st === "completed") return { text: "Selesai / dibayar", cls: "paid" };
+    const x = String(st || "").toLowerCase();
+    if (x === "processing" || x === "process" || x === "diproses") {
+        return { text: "Pesanan diproses", cls: "process" };
+    }
+    if (x === "paid" || x === "done" || x === "completed" || x === "selesai") {
+        return { text: "Pesanan selesai", cls: "done" };
+    }
     return { text: "Menunggu verifikasi", cls: "wait" };
+}
+
+async function setVipOrderStatus(status, labelText) {
+    if (!vipActiveOrderId || !gcDb || !gcReady) {
+        showToast("Gagal", "Chat/order belum siap", "error");
+        return false;
+    }
+    if (!isCurrentUserAdmin()) {
+        showToast("Admin only", "Hanya admin yang bisa ubah status", "warning");
+        return false;
+    }
+    const now = Date.now();
+    const adminName = (typeof gcName !== "undefined" && gcName) || localStorage.getItem("ff_chat_name") || "Admin";
+    try {
+        await gcDb.ref("ffkipas_vip_orders/" + vipActiveOrderId).update({
+            status: status,
+            statusAt: now,
+            statusBy: adminName
+        });
+        // system message di chat privat
+        await gcDb.ref("ffkipas_vip_chat/" + vipActiveOrderId + "/messages").push({
+            name: "SYSTEM",
+            text: "📌 Status order: " + labelText + "\nOleh: " + adminName,
+            ts: now,
+            system: true
+        });
+        // update local history if any
+        try {
+            const list = loadVipOrders();
+            const i = list.findIndex(o => o.orderId === vipActiveOrderId);
+            if (i >= 0) {
+                list[i].status = status;
+                localStorage.setItem(VIP_LS_KEY, JSON.stringify(list));
+            }
+        } catch (e) {}
+        if (vipBannerText) {
+            const base = vipBannerText.textContent.split(" · ").slice(0, 3).join(" · ");
+            vipBannerText.textContent = (base || vipActiveOrderId) + " · " + labelText;
+        }
+        // highlight buttons
+        const bp = document.getElementById("vipBtnProcess");
+        const bd = document.getElementById("vipBtnDone");
+        if (bp) bp.classList.toggle("active", status === "processing");
+        if (bd) bd.classList.toggle("active", status === "completed");
+        showToast("Status", labelText);
+        return true;
+    } catch (err) {
+        console.error(err);
+        showToast("Gagal", "Tidak bisa update status", "error");
+        return false;
+    }
+}
+
+function syncVipAdminActionButtons(status) {
+    const bar = document.getElementById("vipAdminActions");
+    const bp = document.getElementById("vipBtnProcess");
+    const bd = document.getElementById("vipBtnDone");
+    const admin = isCurrentUserAdmin();
+    if (bar) bar.style.display = admin ? "flex" : "none";
+    if (!admin) return;
+    const x = String(status || "").toLowerCase();
+    if (bp) bp.classList.toggle("active", x === "processing" || x === "process" || x === "diproses");
+    if (bd) bd.classList.toggle("active", x === "completed" || x === "done" || x === "selesai" || x === "paid");
 }
 
 async function fetchAllVipOrdersFromFirebase() {
@@ -2436,6 +2516,24 @@ if (vipJoinIdBtn) {
 
 
 // Admin VIP inbox auto-listen saat nama admin sudah tersimpan
+
+const vipBtnProcess = document.getElementById("vipBtnProcess");
+const vipBtnDone = document.getElementById("vipBtnDone");
+if (vipBtnProcess) {
+    vipBtnProcess.onclick = async () => {
+        vipBtnProcess.disabled = true;
+        await setVipOrderStatus("processing", "Pesanan diproses");
+        vipBtnProcess.disabled = false;
+    };
+}
+if (vipBtnDone) {
+    vipBtnDone.onclick = async () => {
+        vipBtnDone.disabled = true;
+        await setVipOrderStatus("completed", "Pesanan selesai");
+        vipBtnDone.disabled = false;
+    };
+}
+
 (function bootVipAdmin() {
     const tryStart = () => {
         if (typeof isCurrentUserAdmin === "function" && isCurrentUserAdmin()) {
