@@ -13,7 +13,7 @@
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800;900&family=Oxanium:wght@500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
-<link href="style.css?v=20260805j" rel="stylesheet"/>
+<link href="style.css?v=20260809a" rel="stylesheet"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 </head>
 <body>
@@ -378,8 +378,19 @@
             <div class="vip-qris-wrap">
                 <img src="assets/payment/qris-vip.jpeg" alt="QRIS FFKIPAS VIP" id="vipQrisImg" class="vip-qris-img"/>
             </div>
-            <p class="vip-pay-hint">Setelah transfer, tekan tombol di bawah. Chat privat akan terbuka otomatis.</p>
-            <button type="button" class="buy-btn" id="vipPaidBtn">Saya Sudah Bayar — Buka Chat</button>
+            <p class="vip-pay-hint">Transfer dulu, lalu <strong>wajib upload bukti TF</strong>. Order baru masuk ke admin setelah bukti terkirim.</p>
+            <div class="vip-proof-box">
+                <input type="file" id="vipProofInput" accept="image/*" hidden>
+                <button type="button" class="vip-proof-btn" id="vipProofBtn">
+                    <i class="fa-solid fa-camera"></i>
+                    <span id="vipProofLabel">Upload Bukti Transfer</span>
+                </button>
+                <div class="vip-proof-preview" id="vipProofPreview" style="display:none">
+                    <img id="vipProofImg" src="" alt="Bukti TF">
+                    <button type="button" class="vip-proof-remove" id="vipProofRemove" title="Ganti">×</button>
+                </div>
+            </div>
+            <button type="button" class="buy-btn" id="vipPaidBtn" disabled>Kirim Bukti &amp; Buka Chat</button>
             <button type="button" class="vip-back-btn" id="vipBackBtn">← Kembali</button>
         </div>
     </div>
@@ -559,6 +570,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
-<script src="script.js?v=20260805j"></script>
+<script src="script.js?v=20260809a"></script>
 </body>
 </html>

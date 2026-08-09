@@ -1733,12 +1733,13 @@ const VIP_PRICE = 20000; // ubah harga di sini
 const VIP_PRODUCT = "FFKIPAS VIP";
 const VIP_LS_KEY = "ff_vip_orders";
 
-let vipPending = null; // { orderId, name, contact, note, price }
+let vipPending = null; // { orderId, name, contact, note, price, proofFile?, proofPreviewUrl? }
 let vipActiveOrderId = null;
 let vipActiveName = "";
 let vipMsgUnsub = null;
 let vipForceScroll = true;
 let vipLastSend = 0;
+let vipProofFile = null; // File bukti TF — wajib sebelum order masuk admin
 
 function formatRp(n) {
     return "Rp" + Number(n || 0).toLocaleString("id-ID");
@@ -1801,9 +1802,85 @@ const vipNewOrderFromList = document.getElementById("vipNewOrderFromList");
 if (vipPriceLabel) vipPriceLabel.textContent = Number(VIP_PRICE).toLocaleString("id-ID");
 if (vipPayAmount) vipPayAmount.textContent = formatRp(VIP_PRICE);
 
+const vipProofInput = document.getElementById("vipProofInput");
+const vipProofBtn = document.getElementById("vipProofBtn");
+const vipProofLabel = document.getElementById("vipProofLabel");
+const vipProofPreview = document.getElementById("vipProofPreview");
+const vipProofImg = document.getElementById("vipProofImg");
+const vipProofRemove = document.getElementById("vipProofRemove");
+
+function clearVipProof() {
+    if (vipProofFile && vipPending && vipPending.proofPreviewUrl) {
+        try { URL.revokeObjectURL(vipPending.proofPreviewUrl); } catch (e) {}
+    }
+    vipProofFile = null;
+    if (vipProofInput) vipProofInput.value = "";
+    if (vipProofPreview) vipProofPreview.style.display = "none";
+    if (vipProofImg) vipProofImg.src = "";
+    if (vipProofLabel) vipProofLabel.textContent = "Upload Bukti Transfer";
+    if (vipProofBtn) vipProofBtn.style.display = "";
+    if (vipPaidBtn) vipPaidBtn.disabled = true;
+}
+
+function setVipProofFile(file) {
+    if (!file) {
+        clearVipProof();
+        return;
+    }
+    if (!file.type.startsWith("image/")) {
+        showToast("File", "Bukti TF harus gambar", "warning");
+        return;
+    }
+    if (file.size > 3 * 1024 * 1024) {
+        showToast("Terlalu besar", "Maksimal 3MB", "warning");
+        return;
+    }
+    clearVipProof();
+    vipProofFile = file;
+    const url = URL.createObjectURL(file);
+    if (vipPending) vipPending.proofPreviewUrl = url;
+    if (vipProofImg) vipProofImg.src = url;
+    if (vipProofPreview) vipProofPreview.style.display = "inline-block";
+    if (vipProofBtn) vipProofBtn.style.display = "none";
+    if (vipProofLabel) vipProofLabel.textContent = file.name || "Bukti terpilih";
+    if (vipPaidBtn) vipPaidBtn.disabled = false;
+}
+
+if (vipProofBtn && vipProofInput) {
+    vipProofBtn.onclick = () => vipProofInput.click();
+    vipProofInput.addEventListener("change", () => {
+        const f = vipProofInput.files && vipProofInput.files[0];
+        if (f) setVipProofFile(f);
+    });
+}
+if (vipProofRemove) {
+    vipProofRemove.onclick = () => {
+        clearVipProof();
+        if (vipProofBtn) vipProofBtn.style.display = "";
+    };
+}
+
+async function uploadVipProofImage(file) {
+    if (!IMGBB_API_KEY || IMGBB_API_KEY.indexOf("PASTE_") === 0) {
+        throw new Error("IMGBB_API_KEY belum diisi");
+    }
+    const formData = new FormData();
+    formData.append("image", file);
+    const res = await fetch("https://api.imgbb.com/1/upload?key=" + encodeURIComponent(IMGBB_API_KEY), {
+        method: "POST",
+        body: formData
+    });
+    const json = await res.json();
+    if (!json.success || !json.data || !json.data.url) {
+        throw new Error(json.error?.message || "Upload bukti gagal");
+    }
+    return json.data.url;
+}
+
 function showVipStep(step) {
     if (vipStepForm) vipStepForm.style.display = step === "form" ? "block" : "none";
     if (vipStepPay) vipStepPay.style.display = step === "pay" ? "block" : "none";
+    if (step === "form") clearVipProof();
 }
 
 function openVipOrderPopup() {
@@ -1811,6 +1888,7 @@ function openVipOrderPopup() {
     if (typeof closeGroupChat === "function") closeGroupChat();
     closeVipChat();
     vipPending = null;
+    clearVipProof();
     showVipStep("form");
     const nameEl = document.getElementById("vipNameInput");
     const contactEl = document.getElementById("vipContactInput");
@@ -1865,7 +1943,12 @@ if (vipContinueBtn) {
         };
         if (vipOrderIdLabel) vipOrderIdLabel.textContent = orderId;
         if (vipPayAmount) vipPayAmount.textContent = formatRp(VIP_PRICE);
+        clearVipProof();
         showVipStep("pay");
+        if (vipPaidBtn) {
+            vipPaidBtn.disabled = true;
+            vipPaidBtn.innerHTML = "Kirim Bukti & Buka Chat";
+        }
     };
 }
 
@@ -1875,8 +1958,10 @@ if (vipBackBtn) {
 
 async function createVipOrderInFirebase(order) {
     if (!gcDb || !gcReady) {
-        // offline fallback — masih bisa chat lokal lewat localStorage only meta
-        return { ok: true, offline: true };
+        return { ok: false, error: new Error("Firebase offline") };
+    }
+    if (!order.proofImage) {
+        return { ok: false, error: new Error("Bukti TF wajib") };
     }
     try {
         const meta = {
@@ -1886,25 +1971,36 @@ async function createVipOrderInFirebase(order) {
             note: order.note || "",
             price: order.price,
             product: order.product,
-            status: "waiting_payment",
+            status: "waiting_verification",
+            proofImage: order.proofImage,
+            hasProof: true,
+            visibleToAdmin: true,
             createdAt: order.createdAt || Date.now(),
-            paidAt: Date.now()
+            paidAt: Date.now(),
+            proofAt: Date.now()
         };
         await gcDb.ref("ffkipas_vip_orders/" + order.orderId).set(meta);
 
-        // system message pertama
+        // system message + bukti TF (order baru masuk admin)
         const sys = {
             name: "SYSTEM",
-            text: "Order " + order.orderId + " dibuat.\nProduk: " + order.product +
+            text: "Order " + order.orderId + " masuk.\nProduk: " + order.product +
                 "\nHarga: " + formatRp(order.price) +
                 "\nNama: " + order.name +
                 "\nKontak: " + order.contact +
                 (order.note ? "\nCatatan: " + order.note : "") +
-                "\n\nSilakan kirim bukti transfer di chat ini. Admin akan membalas di room privat ini.",
+                "\n\nBukti transfer sudah diupload. Menunggu verifikasi admin.",
             ts: Date.now(),
             system: true
         };
         await gcDb.ref("ffkipas_vip_chat/" + order.orderId + "/messages").push(sys);
+        await gcDb.ref("ffkipas_vip_chat/" + order.orderId + "/messages").push({
+            name: order.name || "User",
+            text: "Bukti transfer",
+            image: order.proofImage,
+            ts: Date.now() + 1,
+            isProof: true
+        });
         return { ok: true };
     } catch (err) {
         console.error("createVipOrder", err);
@@ -1919,15 +2015,42 @@ if (vipPaidBtn) {
             showVipStep("form");
             return;
         }
-        vipPaidBtn.disabled = true;
-        vipPaidBtn.innerHTML = "⏳ Membuat order...";
+        if (!vipProofFile) {
+            showToast("Bukti TF", "Upload bukti transfer dulu sebelum lanjut", "warning");
+            return;
+        }
+        if (!gcReady || !gcDb) {
+            showToast("Belum siap", "Koneksi Firebase belum siap, coba lagi", "warning");
+            return;
+        }
 
-        const order = { ...vipPending, status: "waiting_payment", paidClaimAt: Date.now() };
+        vipPaidBtn.disabled = true;
+        const oldLabel = vipPaidBtn.innerHTML;
+        vipPaidBtn.innerHTML = "⏳ Upload bukti...";
+
+        let proofUrl = "";
+        try {
+            proofUrl = await uploadVipProofImage(vipProofFile);
+        } catch (err) {
+            console.error(err);
+            vipPaidBtn.disabled = false;
+            vipPaidBtn.innerHTML = oldLabel || "Kirim Bukti & Buka Chat";
+            showToast("Gagal", "Upload bukti TF gagal. Coba lagi.", "error");
+            return;
+        }
+
+        vipPaidBtn.innerHTML = "⏳ Membuat order...";
+        const order = {
+            ...vipPending,
+            status: "waiting_verification",
+            proofImage: proofUrl,
+            paidClaimAt: Date.now()
+        };
         const res = await createVipOrderInFirebase(order);
 
         if (!res.ok) {
             vipPaidBtn.disabled = false;
-            vipPaidBtn.innerHTML = "Saya Sudah Bayar — Buka Chat";
+            vipPaidBtn.innerHTML = oldLabel || "Kirim Bukti & Buka Chat";
             showToast("Gagal", "Tidak bisa membuat order. Cek koneksi / Firebase.", "error");
             return;
         }
@@ -1939,12 +2062,12 @@ if (vipPaidBtn) {
             note: order.note || "",
             price: order.price,
             product: order.product,
-            status: "waiting_payment",
+            status: "waiting_verification",
+            proofImage: proofUrl,
             createdAt: order.createdAt,
             date: new Date().toLocaleString("id-ID")
         });
 
-        // history local (riwayat)
         try {
             const history = JSON.parse(localStorage.getItem("trxHistory") || "[]");
             history.unshift({
@@ -1952,7 +2075,7 @@ if (vipPaidBtn) {
                 game: VIP_PRODUCT,
                 uid: order.contact,
                 item: VIP_PRODUCT,
-                pay: "QRIS",
+                pay: "QRIS + Bukti TF",
                 price: formatRp(order.price),
                 date: new Date().toLocaleString("id-ID")
             });
@@ -1960,9 +2083,10 @@ if (vipPaidBtn) {
         } catch (e) {}
 
         vipPaidBtn.disabled = false;
-        vipPaidBtn.innerHTML = "Saya Sudah Bayar — Buka Chat";
+        vipPaidBtn.innerHTML = "Kirim Bukti & Buka Chat";
+        clearVipProof();
         closeVipOrderPopup();
-        showToast("Order dibuat", order.orderId + " · chat privat dibuka");
+        showToast("Bukti terkirim", order.orderId + " · order masuk ke admin");
         openVipChat(order.orderId, order.name);
         vipPending = null;
     };
@@ -2240,6 +2364,12 @@ function statusLabel(st) {
     if (x === "paid" || x === "done" || x === "completed" || x === "selesai") {
         return { text: "Pesanan selesai", cls: "done" };
     }
+    if (x === "waiting_verification" || x === "proof_submitted") {
+        return { text: "Bukti TF diterima", cls: "wait" };
+    }
+    if (x === "waiting_payment") {
+        return { text: "Menunggu bukti TF", cls: "wait" };
+    }
     return { text: "Menunggu verifikasi", cls: "wait" };
 }
 
@@ -2311,8 +2441,11 @@ async function fetchAllVipOrdersFromFirebase() {
     try {
         const snap = await gcDb.ref("ffkipas_vip_orders").once("value");
         const val = snap.val() || {};
-        const list = Object.keys(val).map(k => ({ orderId: k, ...val[k] }));
-        list.sort((a, b) => (b.createdAt || b.paidAt || 0) - (a.createdAt || a.paidAt || 0));
+        // Hanya order yang sudah upload bukti TF yang tampil di admin
+        const list = Object.keys(val)
+            .map(k => ({ orderId: k, ...val[k] }))
+            .filter(o => !!(o.proofImage || o.hasProof));
+        list.sort((a, b) => (b.proofAt || b.createdAt || b.paidAt || 0) - (a.proofAt || a.createdAt || a.paidAt || 0));
         return list.slice(0, 80);
     } catch (e) {
         console.error("fetchAllVipOrders", e);
@@ -2329,6 +2462,8 @@ function startVipAdminListener() {
         const handler = (snap) => {
             const order = snap.val();
             if (!order) return;
+            // Belum ada bukti TF → jangan masuk inbox admin
+            if (!(order.proofImage || order.hasProof)) return;
             const id = snap.key || order.orderId;
             if (!id) return;
             if (vipAdminKnownIds.has(id)) return;
@@ -2337,7 +2472,7 @@ function startVipAdminListener() {
                 return;
             }
             vipAdminKnownIds.add(id);
-            showToast("Order VIP baru", id + " · " + (order.name || "User"), "warning");
+            showToast("Order VIP + bukti TF", id + " · " + (order.name || "User"), "warning");
             const sub = document.getElementById("vipMenuSub");
             if (sub) {
                 sub.textContent = "Ada order baru!";
