@@ -1729,11 +1729,23 @@ document.addEventListener("keydown", (e) => {
    FFKIPAS VIP — AUTO ORDER + PRIVATE CHAT
    Setiap pembeli = 1 room chat terpisah (Firebase)
 =========================== */
-const VIP_PRICE = 20000; // ubah harga di sini
 const VIP_PRODUCT = "FFKIPAS VIP";
 const VIP_LS_KEY = "ff_vip_orders";
+/** Paket harga VIP */
+const VIP_PACKAGES = [
+    { id: "1d", days: 1, price: 20000, label: "1 Hari" },
+    { id: "2d", days: 2, price: 40000, label: "2 Hari" },
+    { id: "3d", days: 3, price: 60000, label: "3 Hari" },
+    { id: "4d", days: 4, price: 80000, label: "4 Hari" },
+    { id: "5d", days: 5, price: 100000, label: "5 Hari" },
+    { id: "6d", days: 6, price: 120000, label: "6 Hari" },
+    { id: "7d", days: 7, price: 140000, label: "7 Hari" },
+    { id: "8d", days: 8, price: 160000, label: "8 Hari" },
+];
+const VIP_PRICE = VIP_PACKAGES[0].price;
+let vipSelectedPack = VIP_PACKAGES[0];
 
-let vipPending = null; // { orderId, name, contact, note, price, proofFile?, proofPreviewUrl? }
+let vipPending = null; // { orderId, name, contact, note, price, packId, packLabel, days, allAccess, ... }
 let vipActiveOrderId = null;
 let vipActiveName = "";
 let vipMsgUnsub = null;
@@ -1743,6 +1755,43 @@ let vipProofFile = null; // File bukti TF — wajib sebelum order masuk admin
 
 function formatRp(n) {
     return "Rp" + Number(n || 0).toLocaleString("id-ID");
+}
+
+function getVipPackById(id) {
+    return VIP_PACKAGES.find(p => p.id === id) || VIP_PACKAGES[0];
+}
+
+function updateVipPackUI() {
+    const pack = vipSelectedPack || VIP_PACKAGES[0];
+    if (vipPriceLabel) vipPriceLabel.textContent = Number(pack.price).toLocaleString("id-ID");
+    const sel = document.getElementById("vipPackSelectedLabel");
+    if (sel) {
+        sel.textContent = pack.allAccess
+            ? "Paket: All Akses (semua fitur VIP terbuka)"
+            : ("Paket: " + pack.label);
+    }
+    document.querySelectorAll(".vip-pack-card").forEach(btn => {
+        btn.classList.toggle("active", btn.getAttribute("data-id") === pack.id);
+    });
+}
+
+function renderVipPackGrid() {
+    const grid = document.getElementById("vipPackGrid");
+    if (!grid) return;
+    grid.innerHTML = VIP_PACKAGES.map(p => {
+        const cls = "vip-pack-card" + (p.allAccess ? " all-access" : "") + (vipSelectedPack?.id === p.id ? " active" : "");
+        return `<button type="button" class="${cls}" data-id="${p.id}">
+            <strong>${p.label}</strong>
+            <span>${formatRp(p.price)}${p.allAccess ? " · full VIP" : ""}</span>
+        </button>`;
+    }).join("");
+    grid.querySelectorAll(".vip-pack-card").forEach(btn => {
+        btn.addEventListener("click", () => {
+            vipSelectedPack = getVipPackById(btn.getAttribute("data-id"));
+            updateVipPackUI();
+        });
+    });
+    updateVipPackUI();
 }
 
 function genVipOrderId() {
@@ -1821,8 +1870,8 @@ const vipOrdersList = document.getElementById("vipOrdersList");
 const openVipChatsBtn = document.getElementById("openVipChatsBtn");
 const vipNewOrderFromList = document.getElementById("vipNewOrderFromList");
 
-if (vipPriceLabel) vipPriceLabel.textContent = Number(VIP_PRICE).toLocaleString("id-ID");
-if (vipPayAmount) vipPayAmount.textContent = formatRp(VIP_PRICE);
+renderVipPackGrid();
+if (vipPayAmount) vipPayAmount.textContent = formatRp(vipSelectedPack?.price || VIP_PRICE);
 
 const vipProofInput = document.getElementById("vipProofInput");
 const vipProofBtn = document.getElementById("vipProofBtn");
@@ -1911,6 +1960,8 @@ function openVipOrderPopup() {
     closeVipChat();
     vipPending = null;
     clearVipProof();
+    vipSelectedPack = VIP_PACKAGES[0];
+    updateVipPackUI();
     showVipStep("form");
     const nameEl = document.getElementById("vipNameInput");
     const contactEl = document.getElementById("vipContactInput");
@@ -1968,18 +2019,25 @@ if (vipContinueBtn) {
             showToast("Kontak", "Isi No. WA / Telegram", "warning");
             return;
         }
+        const pack = vipSelectedPack || VIP_PACKAGES[0];
         const orderId = genVipOrderId();
         vipPending = {
             orderId,
             name,
             contact,
             note,
-            price: VIP_PRICE,
-            product: VIP_PRODUCT,
+            price: pack.price,
+            packId: pack.id,
+            packLabel: pack.label,
+            days: pack.days,
+            allAccess: !!pack.allAccess,
+            product: VIP_PRODUCT + " · " + pack.label,
             createdAt: Date.now()
         };
         if (vipOrderIdLabel) vipOrderIdLabel.textContent = orderId;
-        if (vipPayAmount) vipPayAmount.textContent = formatRp(VIP_PRICE);
+        if (vipPayAmount) vipPayAmount.textContent = formatRp(pack.price);
+        const payPack = document.getElementById("vipPayPackLabel");
+        if (payPack) payPack.textContent = pack.label + (pack.allAccess ? " (full VIP)" : "");
         clearVipProof();
         showVipStep("pay");
         if (vipPaidBtn) {
@@ -2001,13 +2059,18 @@ async function createVipOrderInFirebase(order) {
         return { ok: false, error: new Error("Bukti TF wajib") };
     }
     try {
+        const packLabel = order.packLabel || (order.allAccess ? "All Akses" : ((order.days || "?") + " Hari"));
         const meta = {
             orderId: order.orderId,
             name: order.name,
             contact: order.contact,
             note: order.note || "",
             price: order.price,
-            product: order.product,
+            product: order.product || (VIP_PRODUCT + " · " + packLabel),
+            packId: order.packId || "",
+            packLabel: packLabel,
+            days: order.days == null ? null : order.days,
+            allAccess: !!order.allAccess,
             status: "waiting_verification",
             proofImage: order.proofImage,
             hasProof: true,
@@ -2021,7 +2084,8 @@ async function createVipOrderInFirebase(order) {
         // system message + bukti TF (order baru masuk admin)
         const sys = {
             name: "SYSTEM",
-            text: "Order " + order.orderId + " masuk.\nProduk: " + order.product +
+            text: "Order " + order.orderId + " masuk.\nProduk: " + meta.product +
+                "\nPaket: " + packLabel + (meta.allAccess ? " (semua fitur VIP)" : "") +
                 "\nHarga: " + formatRp(order.price) +
                 "\nNama: " + order.name +
                 "\nKontak: " + order.contact +
@@ -2099,6 +2163,10 @@ if (vipPaidBtn) {
             note: order.note || "",
             price: order.price,
             product: order.product,
+            packId: order.packId,
+            packLabel: order.packLabel,
+            days: order.days,
+            allAccess: !!order.allAccess,
             status: "waiting_verification",
             proofImage: proofUrl,
             createdAt: order.createdAt,
@@ -2109,9 +2177,9 @@ if (vipPaidBtn) {
             const history = JSON.parse(localStorage.getItem("trxHistory") || "[]");
             history.unshift({
                 invoice: order.orderId,
-                game: VIP_PRODUCT,
+                game: order.product || VIP_PRODUCT,
                 uid: order.contact,
-                item: VIP_PRODUCT,
+                item: order.packLabel || VIP_PRODUCT,
                 pay: "QRIS + Bukti TF",
                 price: formatRp(order.price),
                 date: new Date().toLocaleString("id-ID")
@@ -2565,7 +2633,7 @@ async function renderVipOrdersList() {
                 <div class="voi-icon"><i class="fa-solid fa-crown"></i></div>
                 <div>
                     <strong>${escapeHtml(id)}</strong>
-                    <span class="voi-meta">${escapeHtml(o.name || "-")} · ${escapeHtml(o.contact || "-")} · ${formatRp(o.price || VIP_PRICE)}</span>
+                    <span class="voi-meta">${escapeHtml(o.name || "-")} · ${escapeHtml(o.contact || "-")} · ${escapeHtml(o.packLabel || o.product || "-")} · ${formatRp(o.price || VIP_PRICE)}</span>
                     <span class="voi-meta">${escapeHtml(when)}</span>
                     <span class="voi-status ${st.cls}">${st.text}</span>
                 </div>
@@ -2586,7 +2654,7 @@ async function renderVipOrdersList() {
                 <div class="voi-icon"><i class="fa-solid fa-crown"></i></div>
                 <div>
                     <strong>${escapeHtml(o.orderId)}</strong>
-                    <span>${escapeHtml(o.name || "-")} · ${formatRp(o.price || VIP_PRICE)} · ${escapeHtml(o.date || "")}</span>
+                    <span>${escapeHtml(o.packLabel || o.product || "-")} · ${formatRp(o.price || VIP_PRICE)} · ${escapeHtml(o.date || "")}</span>
                 </div>
             </div>
         `).join("");

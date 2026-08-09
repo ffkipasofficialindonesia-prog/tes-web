@@ -13,7 +13,7 @@
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800;900&family=Oxanium:wght@500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
-<link href="style.css?v=20260809a" rel="stylesheet"/>
+<link href="style.css?v=20260809c" rel="stylesheet"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 </head>
 <body>
@@ -363,8 +363,10 @@
         <div class="vip-step" id="vipStepForm">
             <div class="vip-badge"><i class="fa-solid fa-crown"></i> FFKIPAS VIP</div>
             <h2>Order FFKIPAS VIP</h2>
-            <p class="vip-desc">Isi data di bawah, bayar QRIS, lalu chat privat otomatis terbuka (1 room per order).</p>
-            <div class="vip-price-tag">Rp<span id="vipPriceLabel">20.000</span></div>
+            <p class="vip-desc">Pilih paket, isi data, bayar QRIS + upload bukti TF. Chat privat terbuka setelah bukti terkirim.</p>
+            <div class="vip-pack-grid" id="vipPackGrid"></div>
+            <div class="vip-price-tag">Total: Rp<span id="vipPriceLabel">20.000</span></div>
+            <p class="vip-pack-selected" id="vipPackSelectedLabel">Paket: 1 Hari</p>
             <input id="vipNameInput" type="text" maxlength="24" placeholder="Nama panggilan kamu" autocomplete="off"/>
             <input id="vipContactInput" type="text" maxlength="40" placeholder="No. WhatsApp / Telegram" autocomplete="off"/>
             <input id="vipNoteInput" type="text" maxlength="80" placeholder="Catatan (opsional)" autocomplete="off"/>
@@ -374,6 +376,7 @@
             <div class="vip-badge"><i class="fa-solid fa-qrcode"></i> Pembayaran QRIS</div>
             <h2>Scan QRIS</h2>
             <p class="vip-order-meta">Order ID: <strong id="vipOrderIdLabel">-</strong></p>
+            <p class="vip-order-meta">Paket: <strong id="vipPayPackLabel">1 Hari</strong></p>
             <p class="vip-order-meta">Total: <strong id="vipPayAmount">Rp20.000</strong> · QRIS</p>
             <div class="vip-qris-wrap">
                 <img src="assets/payment/qris-vip.jpeg" alt="QRIS FFKIPAS VIP" id="vipQrisImg" class="vip-qris-img"/>
@@ -570,6 +573,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
-<script src="script.js?v=20260809b"></script>
+<script src="script.js?v=20260809c"></script>
 </body>
 </html>
