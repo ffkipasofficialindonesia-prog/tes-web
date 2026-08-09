@@ -407,23 +407,83 @@ document.querySelectorAll(".search-item").forEach(item => {
 });
 
 /* ===========================
-COUNTER
+COUNTER — TOTAL DOWNLOAD (realtime Firebase)
 =========================== */
 const counter = document.getElementById("counter");
-let number = 0;
-const target = 12593821;
-const speed = target / 250;
+const DOWNLOAD_BASE = 0; // mulai dari 0
+let downloadCountShown = 0;
+let downloadCountAnimId = null;
+let downloadStatsReady = false;
 
-function updateCounter() {
-    number += speed;
-    if (number < target) {
-        counter.innerHTML = Math.floor(number).toLocaleString();
-        requestAnimationFrame(updateCounter);
-    } else {
-        counter.innerHTML = target.toLocaleString();
+function animateDownloadCount(to) {
+    if (!counter) return;
+    const target = Math.max(0, Math.floor(Number(to) || 0));
+    if (downloadCountAnimId) cancelAnimationFrame(downloadCountAnimId);
+
+    const from = downloadCountShown;
+    if (from === target) {
+        counter.textContent = target.toLocaleString("id-ID");
+        return;
     }
+    // lompat besar → animasi cepat; naik 1–2 → langsung
+    const diff = target - from;
+    const duration = Math.min(1800, Math.max(400, Math.abs(diff) * 0.08));
+    const start = performance.now();
+
+    function step(now) {
+        const t = Math.min(1, (now - start) / duration);
+        // easeOutCubic
+        const eased = 1 - Math.pow(1 - t, 3);
+        const val = Math.round(from + diff * eased);
+        downloadCountShown = val;
+        counter.textContent = val.toLocaleString("id-ID");
+        if (t < 1) {
+            downloadCountAnimId = requestAnimationFrame(step);
+        } else {
+            downloadCountShown = target;
+            counter.textContent = target.toLocaleString("id-ID");
+            downloadCountAnimId = null;
+        }
+    }
+    downloadCountAnimId = requestAnimationFrame(step);
 }
-if (counter) updateCounter();
+
+function initDownloadStats() {
+    if (downloadStatsReady || !gcDb || !gcReady) return;
+    downloadStatsReady = true;
+
+    const ref = gcDb.ref("ffkipas_stats/totalDownloads");
+
+    // Seed 0 hanya kalau path belum ada sama sekali
+    ref.once("value").then((snap) => {
+        if (snap.val() == null) {
+            ref.set(0).catch(() => {});
+        }
+    }).catch(() => {});
+
+    ref.on("value", (snap) => {
+        const n = Number(snap.val());
+        if (!Number.isFinite(n) || n < 0) return;
+        animateDownloadCount(n);
+    });
+}
+
+/** Naikkan total download (dipanggil saat user benar-benar download) */
+function bumpDownloadCount(by = 1) {
+    if (!gcDb || !gcReady) return;
+    const ref = gcDb.ref("ffkipas_stats/totalDownloads");
+    const add = Math.max(1, Math.floor(Number(by) || 1));
+    ref.transaction((cur) => {
+        const base = (typeof cur === "number" && cur >= 0) ? cur : DOWNLOAD_BASE;
+        return base + add;
+    }).catch(() => {});
+}
+
+// Fallback animasi lokal sebelum Firebase siap
+if (counter) {
+    counter.textContent = "0";
+    animateDownloadCount(0);
+}
 
 /* ===========================
 FAQ
@@ -498,6 +558,8 @@ document.querySelectorAll(".download-card a").forEach(btn => {
             btn.style.opacity = "0.9";
         } else {
             btn.innerHTML = "⏳ Membuka...";
+            // hitung 1 download realtime
+            if (typeof bumpDownloadCount === "function") bumpDownloadCount(1);
             window.location.href = downloadLink;
             // reset after a while if user stays
             setTimeout(() => {
@@ -999,10 +1061,19 @@ GROUP CHAT (Firebase Realtime)
            ".read": true,
            ".write": "auth != null || true",
            ".indexOn": ["ts"]
+         },
+         "ffkipas_presence": {
+           ".read": true,
+           ".write": true
+         },
+         "ffkipas_stats": {
+           ".read": true,
+           ".write": true
          }
        }
      }
      (test mode: ".read": true, ".write": true — ganti dalam 30 hari)
+     Presence: path "ffkipas_presence". Stats download: path "ffkipas_stats".
 */
 
 const firebaseConfig = {
@@ -1409,6 +1480,11 @@ function initGroupChat() {
             renderMessages(list);
         });
 
+        // Live pengunjung online (presence)
+        initSitePresence();
+        // Total download realtime
+        initDownloadStats();
+
         // Re-klaim nama yang tersimpan di browser ini
         if (gcName) {
             claimChatName(gcName).then((res) => {
@@ -1428,6 +1504,88 @@ function initGroupChat() {
         console.error("Firebase init error", err);
         gcReady = false;
     }
+}
+
+/* ===========================
+SITE PRESENCE — berapa orang online di web
+=========================== */
+let presenceReady = false;
+let presenceHeartbeat = null;
+const PRESENCE_STALE_MS = 90 * 1000; // anggap offline kalau >90 detik tanpa heartbeat
+
+function updateOnlineUI(count) {
+    const n = Math.max(0, Number(count) || 0);
+    const el = document.getElementById("onlineCounter");
+    if (el) {
+        el.textContent = n.toLocaleString("id-ID");
+    }
+    const label = document.getElementById("gcOnlineLabel");
+    if (label) {
+        label.textContent = n > 0
+            ? (n + " online")
+            : "Online";
+    }
+}
+
+function countFreshPresence(val) {
+    if (!val || typeof val !== "object") return 0;
+    const now = Date.now();
+    let count = 0;
+    Object.keys(val).forEach((k) => {
+        const row = val[k];
+        if (!row) return;
+        const ts = typeof row.ts === "number" ? row.ts : 0;
+        // ServerValue.TIMESTAMP kadang belum ter-resolve di cache lokal — tetap hitung
+        if (!ts || (now - ts) < PRESENCE_STALE_MS) count++;
+    });
+    return count;
+}
+
+function initSitePresence() {
+    if (presenceReady || !gcDb || !gcReady) return;
+    presenceReady = true;
+
+    const sid = gcSessionId || (
+        Date.now().toString(36) + Math.random().toString(36).slice(2, 10)
+    );
+    const myRef = gcDb.ref("ffkipas_presence/" + sid);
+    const connectedRef = gcDb.ref(".info/connected");
+
+    const writePresence = () => {
+        myRef.set({
+            ts: Date.now(),
+            sid: sid,
+            path: (location.pathname || "/").slice(0, 40)
+        }).catch(() => {});
+    };
+
+    connectedRef.on("value", (snap) => {
+        if (snap.val() !== true) return;
+        // Hapus otomatis saat tab/browser ditutup
+        myRef.onDisconnect().remove().catch(() => {});
+        writePresence();
+    });
+
+    // Heartbeat supaya entry tidak stale (kalau onDisconnect gagal)
+    if (presenceHeartbeat) clearInterval(presenceHeartbeat);
+    presenceHeartbeat = setInterval(() => {
+        if (!gcReady || !gcDb) return;
+        if (document.hidden) return;
+        writePresence();
+    }, 25000);
+
+    document.addEventListener("visibilitychange", () => {
+        if (!document.hidden && gcReady) writePresence();
+    });
+
+    // Hitung semua yang masih fresh
+    gcDb.ref("ffkipas_presence").on("value", (snap) => {
+        const val = snap.val() || {};
+        updateOnlineUI(countFreshPresence(val));
+    });
+
+    // Tampilkan minimal 1 (diri sendiri) sebelum data server datang
+    updateOnlineUI(1);
 }
 
 if (gcSaveName) {
