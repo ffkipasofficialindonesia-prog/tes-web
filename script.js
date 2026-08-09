@@ -1751,6 +1751,28 @@ function genVipOrderId() {
     return "VIP-" + t.slice(-5) + r;
 }
 
+/** Nama yang mengandung "muhlis" (dan variasi) dilarang untuk order VIP */
+function containsReservedVipName(name) {
+    const n = String(name || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, ""); // buang spasi/simbol biar "muh lis" / "muhl1s" ikut ketahuan sebagian
+    // pola inti
+    if (n.includes("muhlis")) return true;
+    if (n.includes("muhliss")) return true;
+    if (n.includes("muhliz")) return true;
+    // leetspeak sederhana: 1=i/l, 0=o
+    const leet = n.replace(/1/g, "i").replace(/0/g, "o").replace(/3/g, "e");
+    if (leet.includes("muhlis")) return true;
+    return false;
+}
+
+function suggestRandomVipName() {
+    const prefixes = ["Player", "Gamer", "User", "Guest", "Nova", "Pixel", "Shadow", "Blaze", "Frost", "Viper"];
+    const p = prefixes[Math.floor(Math.random() * prefixes.length)];
+    const num = Math.floor(100 + Math.random() * 900);
+    return p + num;
+}
+
 function loadVipOrders() {
     try {
         return JSON.parse(localStorage.getItem(VIP_LS_KEY) || "[]");
@@ -1925,6 +1947,21 @@ if (vipContinueBtn) {
         const note = (document.getElementById("vipNoteInput")?.value || "").trim().slice(0, 80);
         if (name.length < 2) {
             showToast("Nama", "Isi nama minimal 2 huruf", "warning");
+            return;
+        }
+        if (containsReservedVipName(name)) {
+            const saran = suggestRandomVipName();
+            const nameEl = document.getElementById("vipNameInput");
+            if (nameEl) {
+                nameEl.value = saran;
+                nameEl.focus();
+                nameEl.select();
+            }
+            showToast(
+                "Nama tidak boleh",
+                'Nama mengandung "Muhlis" dilarang. Saran: ' + saran + " (boleh diganti)",
+                "warning"
+            );
             return;
         }
         if (contact.length < 5) {
