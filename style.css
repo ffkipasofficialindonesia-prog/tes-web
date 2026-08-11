@@ -3504,3 +3504,172 @@ button.chat-item {
 }
 
 
+
+/* Cara order + status track + notif UI */
+.vip-card .card-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+.btn-howto {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: 50px;
+  background: transparent;
+  color: #ffc107;
+  font-family: var(--font-tech);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  border: 1px solid rgba(255, 180, 0, 0.4);
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+.btn-howto:hover {
+  background: rgba(255, 180, 0, 0.12);
+  transform: scale(1.02);
+}
+.vip-howto-box {
+  max-width: 420px;
+  text-align: left;
+}
+.vip-howto-box h2 {
+  text-align: center;
+  margin-bottom: 14px;
+}
+.vip-howto-steps {
+  margin: 0 0 14px 18px;
+  color: #ddd;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.vip-howto-steps li { margin-bottom: 8px; }
+.vip-howto-steps strong { color: #ffc107; }
+.vip-howto-note {
+  font-size: 12.5px;
+  color: #999;
+  margin-bottom: 16px;
+  line-height: 1.45;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 180, 0, 0.08);
+  border: 1px solid rgba(255, 180, 0, 0.2);
+}
+.vip-howto-note strong { color: #ffc107; }
+.vip-order-banner {
+  padding: 10px 12px 12px !important;
+}
+.vip-banner-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.vip-banner-row #vipBannerText {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+.vip-copy-id {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 180, 0, 0.4);
+  background: rgba(0, 0, 0, 0.25);
+  color: #ffc107;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+.vip-copy-id:hover {
+  background: rgba(255, 180, 0, 0.18);
+}
+.vip-status-track {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 0 2px;
+}
+.vst-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  max-width: 72px;
+}
+.vst-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  border: 2px solid rgba(255, 255, 255, 0.25);
+}
+.vst-label {
+  font-size: 9.5px;
+  color: #888;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+}
+.vst-line {
+  flex: 1;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  margin-bottom: 16px;
+  border-radius: 2px;
+}
+.vst-step.active .vst-dot {
+  background: #ffc107;
+  border-color: #ffc107;
+  box-shadow: 0 0 10px rgba(255, 193, 7, 0.55);
+}
+.vst-step.active .vst-label { color: #ffc107; }
+.vst-step.done .vst-dot {
+  background: #00c853;
+  border-color: #00c853;
+}
+.vst-step.done .vst-label { color: #7dffa0; }
+.vst-line.filled { background: #00c853; }
+.vip-status-mini {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+.vip-status-mini .vsm {
+  font-size: 10px;
+  font-weight: 700;
+  color: #666;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+}
+.vip-status-mini .vsm.active {
+  color: #ffc107;
+  background: rgba(255, 180, 0, 0.15);
+}
+.vip-status-mini .vsm.done {
+  color: #00c853;
+  background: rgba(0, 200, 83, 0.12);
+}
+.vip-status-mini .vsm-line {
+  width: 10px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.15);
+}

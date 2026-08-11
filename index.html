@@ -13,7 +13,7 @@
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800;900&family=Oxanium:wght@500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
-<link href="style.css?v=20260809e" rel="stylesheet"/>
+<link href="style.css?v=20260812c" rel="stylesheet"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 </head>
 <body>
@@ -148,8 +148,13 @@
                 <img src="assets/icon/ffkipas.png" alt="FFKIPAS VIP">
             </div>
             <h3>FFKIPAS VIP</h3>
-            <p>Akses VIP + Akses Privat</p>
-            <button type="button" class="btn-primary" id="openVipOrder">BELI FFKIPAS</button>
+            <p>Akses VIP + chat privat admin</p>
+            <div class="card-btns">
+                <button type="button" class="btn-primary" id="openVipOrder">BELI FFKIPAS</button>
+                <button type="button" class="btn-howto" id="openVipHowTo">
+                    <i class="fa-solid fa-circle-info"></i> Cara Order VIP
+                </button>
+            </div>
         </div>
     </div>
 </section>
@@ -360,6 +365,23 @@
 <script src="https://pl29896662.effectivecpmnetwork.com/20/06/c7/2006c7c18b1bd25a644a2f8799d58457.js"></script>
 
 
+<!-- VIP HOW TO ORDER -->
+<div class="popup" id="vipHowToPopup">
+    <div class="popup-box vip-howto-box">
+        <span class="close" id="closeVipHowTo">×</span>
+        <div class="vip-badge"><i class="fa-solid fa-circle-info"></i> Cara Order</div>
+        <h2>Order FFKIPAS VIP</h2>
+        <ol class="vip-howto-steps">
+            <li><strong>Pilih paket</strong> (1–8 hari) & isi nama + kontak.</li>
+            <li><strong>Bayar QRIS</strong> sesuai nominal paket.</li>
+            <li><strong>Upload bukti TF</strong> — wajib, baru order masuk admin.</li>
+            <li><strong>Chat privat terbuka</strong> — tunggu admin verifikasi & proses (biasanya 5–15 menit).</li>
+        </ol>
+        <p class="vip-howto-note">Jam operasional: <strong>09.00 – 23.00 WIB</strong>. Di luar jam tetap bisa order; dibalas saat admin online.</p>
+        <button type="button" class="buy-btn" id="vipHowToBuy">Order Sekarang</button>
+    </div>
+</div>
+
 <!-- VIP ORDER POPUP -->
 <div class="popup" id="vipPopup">
     <div class="popup-box vip-popup-box">
@@ -419,7 +441,19 @@
         </div>
     </div>
     <div class="vip-order-banner" id="vipOrderBanner">
-        <span id="vipBannerText">Order VIP · menunggu verifikasi</span>
+        <div class="vip-banner-row">
+            <span id="vipBannerText">Order VIP · menunggu verifikasi</span>
+            <button type="button" class="vip-copy-id" id="vipCopyOrderId" title="Salin Order ID">
+                <i class="fa-regular fa-copy"></i> Salin ID
+            </button>
+        </div>
+        <div class="vip-status-track" id="vipStatusTrack" aria-label="Status order">
+            <div class="vst-step" data-step="wait"><span class="vst-dot"></span><span class="vst-label">Menunggu verifikasi</span></div>
+            <div class="vst-line"></div>
+            <div class="vst-step" data-step="process"><span class="vst-dot"></span><span class="vst-label">Diproses</span></div>
+            <div class="vst-line"></div>
+            <div class="vst-step" data-step="done"><span class="vst-dot"></span><span class="vst-label">Selesai</span></div>
+        </div>
     </div>
     <div class="vip-admin-actions" id="vipAdminActions" style="display:none">
         <button type="button" class="vip-act-btn process" id="vipBtnProcess" title="Tandai sedang diproses">
@@ -577,6 +611,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
-<script src="script.js?v=20260809e"></script>
+<script src="script.js?v=20260812c"></script>
 </body>
 </html>

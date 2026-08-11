@@ -69,6 +69,7 @@ function unlockPage() {
         ["groupChatOverlay", "show"],
         ["vipPopup", "active"],
         ["vipListPopup", "active"],
+        ["vipHowToPopup", "active"],
         ["vipChatPanel", "show"],
         ["vipChatOverlay", "show"]
     ];
@@ -1477,6 +1478,39 @@ function initGroupChat() {
             const val = snap.val() || {};
             const list = Object.keys(val).map(k => ({ id: k, ...val[k] }))
                 .sort((a, b) => (a.ts || 0) - (b.ts || 0));
+
+            // Notif grup: pesan baru (bukan milik sendiri)
+            if (typeof gcNotifReady !== "undefined" && gcNotifReady) {
+                list.forEach(m => {
+                    if (!m.id || (gcKnownMsgIds && gcKnownMsgIds.has(m.id))) return;
+                    if (gcKnownMsgIds) gcKnownMsgIds.add(m.id);
+                    const fromMe = gcName && m.name &&
+                        typeof normalizeChatName === "function" &&
+                        normalizeChatName(m.name) === normalizeChatName(gcName);
+                    if (fromMe) return;
+                    const preview = m.text
+                        ? String(m.text).slice(0, 80)
+                        : (m.image ? "📷 Gambar" : "Pesan baru");
+                    if (typeof notifyUser === "function") {
+                        notifyUser(
+                            "Grup FFKIPAS · " + (m.name || "Anon"),
+                            preview,
+                            {
+                                kind: "group",
+                                tag: "ffkipas-group",
+                                panelId: "groupChatPanel",
+                                onClick: () => {
+                                    if (typeof openGroupChat === "function") openGroupChat();
+                                }
+                            }
+                        );
+                    }
+                });
+            } else {
+                list.forEach(m => { if (m.id && gcKnownMsgIds) gcKnownMsgIds.add(m.id); });
+                setTimeout(() => { gcNotifReady = true; }, 900);
+            }
+
             renderMessages(list);
         });
 
@@ -1901,18 +1935,192 @@ const VIP_PACKAGES = [
     { id: "8d", days: 8, price: 160000, label: "8 Hari" },
 ];
 const VIP_PRICE = VIP_PACKAGES[0].price;
+const VIP_HOURS_TEXT = "09.00 – 23.00 WIB";
+const VIP_REPLY_ETA = "5–15 menit";
 let vipSelectedPack = VIP_PACKAGES[0];
 
-let vipPending = null; // { orderId, name, contact, note, price, packId, packLabel, days, allAccess, ... }
+let vipPending = null; // { orderId, name, contact, note, price, packId, packLabel, days, ... }
 let vipActiveOrderId = null;
 let vipActiveName = "";
 let vipMsgUnsub = null;
+let vipStatusUnsub = null;
 let vipForceScroll = true;
 let vipLastSend = 0;
 let vipProofFile = null; // File bukti TF — wajib sebelum order masuk admin
 
 function formatRp(n) {
     return "Rp" + Number(n || 0).toLocaleString("id-ID");
+}
+
+/* ===========================
+NOTIF SUARA (beda nada VIP vs GRUP) + DESKTOP
+=========================== */
+function getNotifAudioCtx() {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return null;
+    if (!getNotifAudioCtx._ctx) getNotifAudioCtx._ctx = new Ctx();
+    return getNotifAudioCtx._ctx;
+}
+
+function unlockNotifAudio() {
+    try {
+        const ctx = getNotifAudioCtx();
+        if (!ctx) return;
+        if (ctx.state === "suspended") ctx.resume().catch(() => {});
+        if (!unlockNotifAudio._done) {
+            const o = ctx.createOscillator();
+            const g = ctx.createGain();
+            g.gain.value = 0.00001;
+            o.connect(g);
+            g.connect(ctx.destination);
+            o.start();
+            o.stop(ctx.currentTime + 0.01);
+            unlockNotifAudio._done = true;
+        }
+    } catch (e) {}
+}
+
+["pointerdown", "touchstart", "keydown", "click"].forEach(ev => {
+    document.addEventListener(ev, () => {
+        unlockNotifAudio();
+        ensureDesktopNotifPermission();
+    }, { passive: true });
+});
+
+/** type: "vip" | "group" — nada berbeda */
+function playNotifSound(type) {
+    try {
+        const ctx = getNotifAudioCtx();
+        if (!ctx) return;
+        const run = () => {
+            const t0 = ctx.currentTime;
+            // VIP = 2 nada tinggi cepat; GRUP = 3 nada lebih rendah
+            const notes = type === "group"
+                ? [
+                    { at: 0, freq: 523, dur: 0.12 },
+                    { at: 0.14, freq: 659, dur: 0.12 },
+                    { at: 0.28, freq: 784, dur: 0.16 }
+                  ]
+                : [
+                    { at: 0, freq: 880, dur: 0.14 },
+                    { at: 0.16, freq: 1175, dur: 0.2 }
+                  ];
+            notes.forEach(({ at, freq, dur }) => {
+                const o = ctx.createOscillator();
+                const g = ctx.createGain();
+                o.type = type === "group" ? "triangle" : "square";
+                o.frequency.value = freq;
+                const start = t0 + at;
+                g.gain.setValueAtTime(0.0001, start);
+                g.gain.exponentialRampToValueAtTime(0.2, start + 0.015);
+                g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+                o.connect(g);
+                g.connect(ctx.destination);
+                o.start(start);
+                o.stop(start + dur + 0.02);
+            });
+        };
+        if (ctx.state === "suspended") ctx.resume().then(run).catch(() => {});
+        else run();
+    } catch (e) {
+        console.warn("notif sound", e);
+    }
+}
+
+function playVipNotifSound() { playNotifSound("vip"); }
+function playGroupNotifSound() { playNotifSound("group"); }
+
+let _notifPermAsked = false;
+function ensureDesktopNotifPermission() {
+    if (!("Notification" in window)) return Promise.resolve(false);
+    if (Notification.permission === "granted") return Promise.resolve(true);
+    if (Notification.permission === "denied") return Promise.resolve(false);
+    if (_notifPermAsked) return Promise.resolve(false);
+    _notifPermAsked = true;
+    return Notification.requestPermission().then(p => p === "granted").catch(() => false);
+}
+
+function showDesktopNotif(title, body, opts = {}) {
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+    try {
+        const n = new Notification(title || "FFKIPAS", {
+            body: body || "",
+            icon: opts.icon || "assets/logo.png",
+            badge: "assets/favicon.png",
+            tag: opts.tag || "ffkipas-notif",
+            renotify: true,
+            silent: false
+        });
+        n.onclick = () => {
+            try { window.focus(); } catch (e) {}
+            if (typeof opts.onClick === "function") opts.onClick();
+            n.close();
+        };
+        setTimeout(() => { try { n.close(); } catch (e) {} }, 8000);
+    } catch (e) {}
+}
+
+function notifyUser(title, body, opts = {}) {
+    const kind = opts.kind || "vip";
+    if (opts.sound !== false) {
+        if (kind === "group") playGroupNotifSound();
+        else playVipNotifSound();
+    }
+    const panel = opts.panelId ? document.getElementById(opts.panelId) : null;
+    const panelOpen = !!(panel && panel.classList.contains("show"));
+    if (document.hidden || !panelOpen || opts.forceDesktop) {
+        showDesktopNotif(title, body, opts);
+    }
+}
+
+let gcKnownMsgIds = new Set();
+let gcNotifReady = false;
+
+function statusToTrackStep(st) {
+    const x = String(st || "").toLowerCase();
+    if (x === "processing" || x === "process" || x === "diproses") return "process";
+    if (x === "paid" || x === "done" || x === "completed" || x === "selesai") return "done";
+    return "wait";
+}
+
+function updateVipStatusTrack(status) {
+    const track = document.getElementById("vipStatusTrack");
+    if (!track) return;
+    const step = statusToTrackStep(status);
+    const order = ["wait", "process", "done"];
+    const idx = order.indexOf(step);
+    track.querySelectorAll(".vst-step").forEach(el => {
+        const s = el.getAttribute("data-step");
+        const si = order.indexOf(s);
+        el.classList.toggle("active", si === idx);
+        el.classList.toggle("done", si < idx);
+    });
+    track.querySelectorAll(".vst-line").forEach((line, i) => {
+        line.classList.toggle("filled", i < idx);
+    });
+}
+
+async function copyTextToClipboard(text) {
+    const t = String(text || "").trim();
+    if (!t) return false;
+    try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(t);
+            return true;
+        }
+    } catch (e) {}
+    try {
+        const ta = document.createElement("textarea");
+        ta.value = t;
+        ta.style.cssText = "position:fixed;left:-9999px;top:0";
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand("copy");
+        document.body.removeChild(ta);
+        return ok;
+    } catch (e) {
+        return false;
+    }
 }
 
 function getVipPackById(id) {
@@ -1923,11 +2131,7 @@ function updateVipPackUI() {
     const pack = vipSelectedPack || VIP_PACKAGES[0];
     if (vipPriceLabel) vipPriceLabel.textContent = Number(pack.price).toLocaleString("id-ID");
     const sel = document.getElementById("vipPackSelectedLabel");
-    if (sel) {
-        sel.textContent = pack.allAccess
-            ? "Paket: All Akses (semua fitur VIP terbuka)"
-            : ("Paket: " + pack.label);
-    }
+    if (sel) sel.textContent = "Paket: " + pack.label + " · akses VIP penuh";
     document.querySelectorAll(".vip-pack-card").forEach(btn => {
         btn.classList.toggle("active", btn.getAttribute("data-id") === pack.id);
     });
@@ -2239,17 +2443,18 @@ async function createVipOrderInFirebase(order) {
         };
         await gcDb.ref("ffkipas_vip_orders/" + order.orderId).set(meta);
 
+        const now = Date.now();
         // system message + bukti TF (order baru masuk admin)
         const sys = {
             name: "SYSTEM",
             text: "Order " + order.orderId + " masuk.\nProduk: " + meta.product +
-                "\nPaket: " + packLabel + (meta.allAccess ? " (semua fitur VIP)" : "") +
+                "\nPaket: " + packLabel +
                 "\nHarga: " + formatRp(order.price) +
                 "\nNama: " + order.name +
                 "\nKontak: " + order.contact +
                 (order.note ? "\nCatatan: " + order.note : "") +
                 "\n\nBukti transfer sudah diupload. Menunggu verifikasi admin.",
-            ts: Date.now(),
+            ts: now,
             system: true
         };
         await gcDb.ref("ffkipas_vip_chat/" + order.orderId + "/messages").push(sys);
@@ -2257,8 +2462,20 @@ async function createVipOrderInFirebase(order) {
             name: order.name || "User",
             text: "Bukti transfer",
             image: order.proofImage,
-            ts: Date.now() + 1,
+            ts: now + 1,
             isProof: true
+        });
+        // Auto-reply jam operasional
+        await gcDb.ref("ffkipas_vip_chat/" + order.orderId + "/messages").push({
+            name: "SYSTEM",
+            text: "🤖 Auto-reply Admin\n" +
+                "Terima kasih sudah order VIP.\n" +
+                "Admin biasanya online " + VIP_REPLY_ETA + " saat jam operasional.\n" +
+                "Jam operasional: " + VIP_HOURS_TEXT + ".\n" +
+                "Di luar jam, order tetap masuk & dibalas saat admin online.\n" +
+                "Mohon tunggu — jangan spam ya.",
+            ts: now + 2,
+            system: true
         });
         return { ok: true };
     } catch (err) {
@@ -2349,6 +2566,7 @@ if (vipPaidBtn) {
         vipPaidBtn.innerHTML = "Kirim Bukti & Buka Chat";
         clearVipProof();
         closeVipOrderPopup();
+        playVipNotifSound();
         showToast("Bukti terkirim", order.orderId + " · order masuk ke admin");
         openVipChat(order.orderId, order.name);
         vipPending = null;
@@ -2449,19 +2667,49 @@ function openVipChat(orderId, name) {
     if (vipChatTitle) vipChatTitle.textContent = "VIP · " + orderId;
     if (vipChatSub) vipChatSub.textContent = adminMode ? ("Admin: " + vipActiveName) : vipActiveName;
     if (vipBannerText) {
-        vipBannerText.textContent = "Order " + orderId + " · " + formatRp(local?.price || VIP_PRICE) + (adminMode ? " · balas pembeli di sini" : " · kirim bukti di chat");
+        vipBannerText.textContent = "Order " + orderId + " · " + formatRp(local?.price || VIP_PRICE) + (adminMode ? " · balas pembeli di sini" : " · status real-time");
     }
-    // Ambil meta order dari Firebase untuk banner admin
+    updateVipStatusTrack(local?.status || "waiting_verification");
+
+    // Real-time status order
+    if (typeof vipStatusUnsub === "function") {
+        try { vipStatusUnsub(); } catch (e) {}
+        vipStatusUnsub = null;
+    }
     if (gcDb && gcReady) {
-        gcDb.ref("ffkipas_vip_orders/" + orderId).once("value").then((snap) => {
+        const statusRef = gcDb.ref("ffkipas_vip_orders/" + orderId);
+        let lastStatus = local?.status || null;
+        let statusReady = false;
+        const onStatus = (snap) => {
             const meta = snap.val();
             if (!meta) return;
+            const st = statusLabel(meta.status).text;
             if (vipBannerText) {
-                const st = statusLabel(meta.status).text;
-                vipBannerText.textContent = orderId + " · " + (meta.name || "-") + " · " + (meta.contact || "-") + " · " + formatRp(meta.price || VIP_PRICE) + " · " + st;
+                if (adminMode) {
+                    vipBannerText.textContent = orderId + " · " + (meta.name || "-") + " · " + (meta.contact || "-") + " · " + formatRp(meta.price || VIP_PRICE) + " · " + st;
+                } else {
+                    vipBannerText.textContent = orderId + " · " + (meta.packLabel || meta.product || "VIP") + " · " + formatRp(meta.price || VIP_PRICE) + " · " + st;
+                }
             }
+            updateVipStatusTrack(meta.status);
             syncVipAdminActionButtons(meta.status);
-        }).catch(() => {});
+            if (statusReady && lastStatus && meta.status && meta.status !== lastStatus) {
+                playVipNotifSound();
+                if (!adminMode) showToast("Status order", st);
+            }
+            lastStatus = meta.status || lastStatus;
+            statusReady = true;
+            try {
+                const list = loadVipOrders();
+                const i = list.findIndex(o => o.orderId === orderId);
+                if (i >= 0 && list[i].status !== meta.status) {
+                    list[i].status = meta.status;
+                    localStorage.setItem(VIP_LS_KEY, JSON.stringify(list));
+                }
+            } catch (e) {}
+        };
+        statusRef.on("value", onStatus);
+        vipStatusUnsub = () => statusRef.off("value", onStatus);
     }
 
     vipForceScroll = true;
@@ -2469,15 +2717,7 @@ function openVipChat(orderId, name) {
     if (vipChatOverlay) vipChatOverlay.classList.add("show");
     if (typeof setChatLabelVisible === "function") setChatLabelVisible(false);
 
-    // tombol status khusus admin
-    syncVipAdminActionButtons(local?.status || "waiting_payment");
-    if (gcDb && gcReady) {
-        gcDb.ref("ffkipas_vip_orders/" + orderId).once("value").then((snap) => {
-            const meta = snap.val();
-            if (meta) syncVipAdminActionButtons(meta.status);
-        }).catch(() => {});
-    }
-
+    syncVipAdminActionButtons(local?.status || "waiting_verification");
     listenVipMessages(orderId);
     setTimeout(() => vipInput && vipInput.focus(), 120);
 }
@@ -2488,6 +2728,10 @@ function closeVipChat() {
     const bar = document.getElementById("vipAdminActions");
     if (bar) bar.style.display = "none";
     unsubVipMessages();
+    if (typeof vipStatusUnsub === "function") {
+        try { vipStatusUnsub(); } catch (e) {}
+        vipStatusUnsub = null;
+    }
     vipActiveOrderId = null;
     if (typeof setChatLabelVisible === "function") {
         const gcOpen = document.getElementById("groupChatPanel")?.classList.contains("show");
@@ -2622,13 +2866,13 @@ function formatVipDate(ts) {
 function statusLabel(st) {
     const x = String(st || "").toLowerCase();
     if (x === "processing" || x === "process" || x === "diproses") {
-        return { text: "Pesanan diproses", cls: "process" };
+        return { text: "Diproses", cls: "process" };
     }
     if (x === "paid" || x === "done" || x === "completed" || x === "selesai") {
-        return { text: "Pesanan selesai", cls: "done" };
+        return { text: "Selesai", cls: "done" };
     }
     if (x === "waiting_verification" || x === "proof_submitted") {
-        return { text: "Bukti TF diterima", cls: "wait" };
+        return { text: "Menunggu verifikasi", cls: "wait" };
     }
     if (x === "waiting_payment") {
         return { text: "Menunggu bukti TF", cls: "wait" };
@@ -2673,11 +2917,13 @@ async function setVipOrderStatus(status, labelText) {
             const base = vipBannerText.textContent.split(" · ").slice(0, 3).join(" · ");
             vipBannerText.textContent = (base || vipActiveOrderId) + " · " + labelText;
         }
+        updateVipStatusTrack(status);
         // highlight buttons
         const bp = document.getElementById("vipBtnProcess");
         const bd = document.getElementById("vipBtnDone");
         if (bp) bp.classList.toggle("active", status === "processing");
         if (bd) bd.classList.toggle("active", status === "completed");
+        playVipNotifSound();
         showToast("Status", labelText);
         return true;
     } catch (err) {
@@ -2735,6 +2981,19 @@ function startVipAdminListener() {
                 return;
             }
             vipAdminKnownIds.add(id);
+            notifyUser(
+                "Order VIP baru",
+                id + " · " + (order.name || "User") + " · " + formatRp(order.price || VIP_PRICE),
+                {
+                    kind: "vip",
+                    tag: "ffkipas-vip-order",
+                    forceDesktop: true,
+                    panelId: "vipListPopup",
+                    onClick: () => {
+                        if (typeof openVipList === "function") openVipList();
+                    }
+                }
+            );
             showToast("Order VIP + bukti TF", id + " · " + (order.name || "User"), "warning");
             const sub = document.getElementById("vipMenuSub");
             if (sub) {
@@ -2807,15 +3066,28 @@ async function renderVipOrdersList() {
             vipOrdersList.innerHTML = '<div class="vip-orders-empty">Belum ada order VIP.<br>Order dulu biar chat privat muncul di sini.</div>';
             return;
         }
-        vipOrdersList.innerHTML = list.map(o => `
-            <div class="vip-order-item" data-id="${escapeHtml(o.orderId)}" data-name="${escapeHtml(o.name || "")}">
+        vipOrdersList.innerHTML = list.map(o => {
+            const st = statusLabel(o.status);
+            const step = statusToTrackStep(o.status);
+            const cWait = step === "wait" ? "active" : "done";
+            const cProc = step === "process" ? "active" : (step === "done" ? "done" : "");
+            const cDone = step === "done" ? "active" : "";
+            return `<div class="vip-order-item" data-id="${escapeHtml(o.orderId)}" data-name="${escapeHtml(o.name || "")}">
                 <div class="voi-icon"><i class="fa-solid fa-crown"></i></div>
                 <div>
                     <strong>${escapeHtml(o.orderId)}</strong>
-                    <span>${escapeHtml(o.packLabel || o.product || "-")} · ${formatRp(o.price || VIP_PRICE)} · ${escapeHtml(o.date || "")}</span>
+                    <span class="voi-meta">${escapeHtml(o.packLabel || o.product || "-")} · ${formatRp(o.price || VIP_PRICE)} · ${escapeHtml(o.date || "")}</span>
+                    <span class="voi-status ${st.cls}">${st.text}</span>
+                    <div class="vip-status-mini">
+                        <span class="vsm ${cWait}">Verifikasi</span>
+                        <span class="vsm-line"></span>
+                        <span class="vsm ${cProc}">Diproses</span>
+                        <span class="vsm-line"></span>
+                        <span class="vsm ${cDone}">Selesai</span>
+                    </div>
                 </div>
-            </div>
-        `).join("");
+            </div>`;
+        }).join("");
     }
 
     vipOrdersList.querySelectorAll(".vip-order-item").forEach(el => {
@@ -2865,6 +3137,65 @@ if (vipNewOrderFromList) {
         openVipOrderPopup();
     };
 }
+
+/* Cara Order VIP */
+const vipHowToPopup = document.getElementById("vipHowToPopup");
+const openVipHowToBtn = document.getElementById("openVipHowTo");
+const closeVipHowToBtn = document.getElementById("closeVipHowTo");
+const vipHowToBuyBtn = document.getElementById("vipHowToBuy");
+function openVipHowTo() {
+    if (typeof closeChatMenu === "function") closeChatMenu();
+    if (vipHowToPopup) vipHowToPopup.classList.add("active");
+}
+function closeVipHowTo() {
+    if (vipHowToPopup) vipHowToPopup.classList.remove("active");
+}
+if (openVipHowToBtn) {
+    openVipHowToBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openVipHowTo();
+    });
+}
+if (closeVipHowToBtn) closeVipHowToBtn.onclick = closeVipHowTo;
+if (vipHowToPopup) {
+    vipHowToPopup.onclick = (e) => {
+        if (e.target === vipHowToPopup) closeVipHowTo();
+    };
+}
+if (vipHowToBuyBtn) {
+    vipHowToBuyBtn.onclick = () => {
+        closeVipHowTo();
+        openVipOrderPopup();
+    };
+}
+
+/* Salin Order ID */
+const vipCopyOrderIdBtn = document.getElementById("vipCopyOrderId");
+if (vipCopyOrderIdBtn) {
+    vipCopyOrderIdBtn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const id = vipActiveOrderId || "";
+        if (!id) {
+            showToast("Order ID", "Belum ada order aktif", "warning");
+            return;
+        }
+        const ok = await copyTextToClipboard(id);
+        if (ok) {
+            const old = vipCopyOrderIdBtn.innerHTML;
+            vipCopyOrderIdBtn.innerHTML = '<i class="fa-solid fa-check"></i> Tersalin';
+            showToast("Tersalin", id);
+            setTimeout(() => { vipCopyOrderIdBtn.innerHTML = old; }, 1500);
+        } else {
+            showToast("Gagal", "Tidak bisa salin", "error");
+        }
+    });
+}
+
+document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeVipHowTo();
+});
 
 // ESC juga nutup VIP UI
 document.addEventListener("keydown", (e) => {
