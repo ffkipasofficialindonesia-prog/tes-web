@@ -70,6 +70,7 @@ function unlockPage() {
         ["vipPopup", "active"],
         ["vipListPopup", "active"],
         ["vipHowToPopup", "active"],
+        ["downloadHowToPopup", "active"],
         ["vipChatPanel", "show"],
         ["vipChatOverlay", "show"]
     ];
@@ -3193,8 +3194,37 @@ if (vipCopyOrderIdBtn) {
     });
 }
 
+/* Cara Download */
+const downloadHowToPopup = document.getElementById("downloadHowToPopup");
+const closeDownloadHowToBtn = document.getElementById("closeDownloadHowTo");
+const downloadHowToCloseBtn = document.getElementById("downloadHowToCloseBtn");
+function openDownloadHowTo() {
+    if (typeof closeChatMenu === "function") closeChatMenu();
+    if (downloadHowToPopup) downloadHowToPopup.classList.add("active");
+}
+function closeDownloadHowTo() {
+    if (downloadHowToPopup) downloadHowToPopup.classList.remove("active");
+}
+document.querySelectorAll(".open-download-howto").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openDownloadHowTo();
+    });
+});
+if (closeDownloadHowToBtn) closeDownloadHowToBtn.onclick = closeDownloadHowTo;
+if (downloadHowToCloseBtn) downloadHowToCloseBtn.onclick = closeDownloadHowTo;
+if (downloadHowToPopup) {
+    downloadHowToPopup.onclick = (e) => {
+        if (e.target === downloadHowToPopup) closeDownloadHowTo();
+    };
+}
+
 document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeVipHowTo();
+    if (e.key === "Escape") {
+        closeVipHowTo();
+        closeDownloadHowTo();
+    }
 });
 
 // ESC juga nutup VIP UI

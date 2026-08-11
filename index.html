@@ -13,7 +13,7 @@
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800;900&family=Oxanium:wght@500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
-<link href="style.css?v=20260812c" rel="stylesheet"/>
+<link href="style.css?v=20260812e" rel="stylesheet"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 </head>
 <body>
@@ -125,7 +125,12 @@
             </div>
             <h3>INJECT FFKIPAS</h3>
             <p>V 1.0</p>
-            <a class="btn-primary" href="https://sfile.co/xZzMhGPlLZ4">Download</a>
+            <div class="card-btns">
+                <a class="btn-primary" href="https://sfile.co/xZzMhGPlLZ4">Download</a>
+                <button type="button" class="btn-howto open-download-howto">
+                    <i class="fa-solid fa-circle-info"></i> Cara Download
+                </button>
+            </div>
         </div>
         <div class="download-card">
             <div class="icon">
@@ -133,7 +138,12 @@
             </div>
             <h3>LOCALCONFIG</h3>
             <p>V 3.0</p>
-            <a class="btn-primary" href="https://sfile.co/tIhQIfM2EnD">Download</a>
+            <div class="card-btns">
+                <a class="btn-primary" href="https://sfile.co/tIhQIfM2EnD">Download</a>
+                <button type="button" class="btn-howto open-download-howto">
+                    <i class="fa-solid fa-circle-info"></i> Cara Download
+                </button>
+            </div>
         </div>
         <div class="download-card">
             <div class="icon">
@@ -141,14 +151,19 @@
             </div>
             <h3>MT MANAGER</h3>
             <p>Untuk LOCALCONFIG</p>
-            <a class="btn-primary" href="https://www.mediafire.com/file/yq1in0o2zk83izl/MT+Manager.apk/file">Download</a>
+            <div class="card-btns">
+                <a class="btn-primary" href="https://www.mediafire.com/file/yq1in0o2zk83izl/MT+Manager.apk/file">Download</a>
+                <button type="button" class="btn-howto open-download-howto">
+                    <i class="fa-solid fa-circle-info"></i> Cara Download
+                </button>
+            </div>
         </div>
         <div class="download-card vip-card">
             <div class="icon">
                 <img src="assets/icon/ffkipas.png" alt="FFKIPAS VIP">
             </div>
             <h3>FFKIPAS VIP</h3>
-            <p>Akses VIP + chat privat admin</p>
+            <p>Akses VIP + Fitur Spesial</p>
             <div class="card-btns">
                 <button type="button" class="btn-primary" id="openVipOrder">BELI FFKIPAS</button>
                 <button type="button" class="btn-howto" id="openVipHowTo">
@@ -364,6 +379,26 @@
 <!-- Social Bar -->
 <script src="https://pl29896662.effectivecpmnetwork.com/20/06/c7/2006c7c18b1bd25a644a2f8799d58457.js"></script>
 
+
+<!-- CARA DOWNLOAD -->
+<div class="popup" id="downloadHowToPopup">
+    <div class="popup-box vip-howto-box">
+        <span class="close" id="closeDownloadHowTo">×</span>
+        <div class="vip-badge"><i class="fa-solid fa-download"></i> Cara Download</div>
+        <h2>Download FFKIPAS</h2>
+        <ol class="vip-howto-steps">
+            <li><strong>Pilih file</strong> — Inject FFKIPAS / LocalConfig / MT Manager.</li>
+            <li><strong>Klik Download</strong> — ikuti link (sfile / MediaFire).</li>
+            <li><strong>Selesaikan iklan</strong> — klik 3x sampai file terbuka (support admin).</li>
+            <li><strong>Install / pasang</strong> — Inject di HP; LocalConfig pakai <em>MT Manager</em>.</li>
+        </ol>
+        <p class="vip-howto-note">
+            <strong>Tips:</strong> Aktifkan “Izinkan dari sumber tidak dikenal” di pengaturan HP bila diminta.
+            Butuh akses VIP penuh? Order di kartu <strong>FFKIPAS VIP</strong>.
+        </p>
+        <button type="button" class="buy-btn" id="downloadHowToCloseBtn">Mengerti</button>
+    </div>
+</div>
 
 <!-- VIP HOW TO ORDER -->
 <div class="popup" id="vipHowToPopup">
@@ -611,6 +646,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
-<script src="script.js?v=20260812c"></script>
+<script src="script.js?v=20260812e"></script>
 </body>
 </html>
