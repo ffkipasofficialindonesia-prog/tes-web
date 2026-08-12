@@ -149,7 +149,6 @@ const SECTION_PATHS = {
     home: "/",
     download: "/download",
     topup: "/topup",
-    accountCheck: "/cek-akun",
     history: "/history",
     faq: "/faq"
 };
@@ -159,9 +158,6 @@ const PATH_TO_SECTION = {
     "/home": "home",
     "/download": "download",
     "/topup": "topup",
-    "/cek-akun": "accountCheck",
-    "/accountcheck": "accountCheck",
-    "/account": "accountCheck",
     "/history": "history",
     "/riwayat": "history",
     "/faq": "faq"
@@ -208,12 +204,6 @@ function navigateToSection(sectionId, opts = {}) {
         setTimeout(() => scrollToSectionEl(target, smooth && i === 0), ms);
     });
 
-    if (sectionId === "accountCheck") {
-        setTimeout(() => {
-            const uid = document.getElementById("ffUid");
-            if (uid) uid.focus();
-        }, 450);
-    }
     return true;
 }
 
@@ -515,7 +505,7 @@ const observer = new IntersectionObserver(entries => {
     });
 }, { threshold: 0.12 });
 
-document.querySelectorAll(".download-card, .game-card, .stat, .faq-item, .account-search").forEach(el => {
+document.querySelectorAll(".download-card, .game-card, .stat, .faq-item").forEach(el => {
     el.classList.add("hidden");
     observer.observe(el);
 });
@@ -977,75 +967,6 @@ if (chatToggle && chatMenu) {
 /* ===========================
 ACCOUNT CHECK
 =========================== */
-const cekBtn = document.getElementById("cekAccountBtn");
-if (cekBtn) {
-    cekBtn.onclick = async () => {
-        const uid = document.getElementById("ffUid").value.trim();
-        const region = document.getElementById("ffRegion").value;
-        const result = document.getElementById("accountResult");
-
-        if (!uid) {
-            alert("Masukkan UID");
-            return;
-        }
-
-        result.innerHTML = "<p style='text-align:center;color:#ffb100;padding:30px'>⏳ Loading...</p>";
-
-        try {
-            const res = await fetch(`https://ffkipas-api.vercel.app/api/account?uid=${uid}&region=${region}`);
-            const json = await res.json();
-            const acc = json.result.AccountInfo;
-            const guild = json.result.GuildInfo;
-            const social = json.result.socialinfo;
-            const pet = json.result.petInfo;
-
-            result.innerHTML = `
-                <div class="ff-profile">
-                    <div class="profile-header">
-                        <div class="avatar-box">
-                            <i class="fa-solid fa-user-secret"></i>
-                        </div>
-                        <div class="player-info">
-                            <h2>${acc.AccountName}</h2>
-                            <p>UID : ${uid}</p>
-                            <div class="level-badge">⭐ Lv ${acc.AccountLevel}</div>
-                        </div>
-                    </div>
-                    <div class="stats-grid">
-                        <div class="stat-box">
-                            ❤️
-                            <h3>${acc.AccountLikes.toLocaleString()}</h3>
-                            <span>Likes</span>
-                        </div>
-                        <div class="stat-box">
-                            🏆
-                            <h3>${acc.BrRankPoint}</h3>
-                            <span>BR Rank</span>
-                        </div>
-                        <div class="stat-box">
-                            🎯
-                            <h3>${acc.CsRankPoint}</h3>
-                            <span>CS Rank</span>
-                        </div>
-                    </div>
-                    <div class="info-card">
-                        <p><i class="fa-solid fa-earth-asia"></i> Region <span>${acc.AccountRegion.toUpperCase()}</span></p>
-                        <p><i class="fa-solid fa-users"></i> Guild <span>${guild.GuildName}</span></p>
-                        <p><i class="fa-solid fa-crown"></i> Guild Lv <span>${guild.GuildLevel}</span></p>
-                        <p><i class="fa-solid fa-paw"></i> Pet Level <span>${pet.level}</span></p>
-                        <p><i class="fa-solid fa-fire"></i> Version <span>${acc.ReleaseVersion}</span></p>
-                    </div>
-                    <div class="bio-box">
-                        <h4>📝 BIO</h4>
-                        <p>${social.AccountSignature || "-"}</p>
-                    </div>
-                </div>
-            `;
-        } catch (e) {
-            result.innerHTML = "<p style='text-align:center;color:#ff5555;padding:30px'>❌ UID tidak ditemukan.</p>";
-        }
-    };
-}
 
 /* ===========================
 GROUP CHAT (Firebase Realtime)
@@ -1938,7 +1859,22 @@ const VIP_PACKAGES = [
 const VIP_PRICE = VIP_PACKAGES[0].price;
 const VIP_HOURS_TEXT = "09.00 – 23.00 WIB";
 const VIP_REPLY_ETA = "5–15 menit";
+/**
+ * SETTING KUPON VIP
+ * - code   : kode yang diketik user (otomatis di-UPPERCASE)
+ * - percent: diskon %
+ * - maxUses: kuota total pemakaian (null = tanpa batas)
+ * - active : false = nonaktif sementara
+ * Ubah / tambah di sini, lalu upload script.js
+ */
+const VIP_COUPONS = {
+    "DISKONKIPAS": { percent: 5, maxUses: 5, active: true },
+    "MUHLISDISKON":  { percent: 10, maxUses: 5, active: true },
+    "VIP20":    { percent: 11, maxUses: 3, active: true }
+};
 let vipSelectedPack = VIP_PACKAGES[0];
+let vipAppliedCoupon = null; // { code, percent, maxUses }
+let vipAdminFilter = "all"; // all | wait | process | done | archived
 
 let vipPending = null; // { orderId, name, contact, note, price, packId, packLabel, days, ... }
 let vipActiveOrderId = null;
@@ -1952,6 +1888,171 @@ let vipProofFile = null; // File bukti TF — wajib sebelum order masuk admin
 function formatRp(n) {
     return "Rp" + Number(n || 0).toLocaleString("id-ID");
 }
+
+/* Admin Online / Offline (jam operasional WIB) */
+function getWibParts(date) {
+    try {
+        const fmt = new Intl.DateTimeFormat("en-GB", {
+            timeZone: "Asia/Jakarta",
+            hour: "numeric",
+            minute: "numeric",
+            hour12: false,
+            weekday: "short"
+        });
+        const parts = fmt.formatToParts(date || new Date());
+        const map = {};
+        parts.forEach(p => { map[p.type] = p.value; });
+        return {
+            hour: Number(map.hour || 0),
+            minute: Number(map.minute || 0),
+            weekday: map.weekday || ""
+        };
+    } catch (e) {
+        const d = date || new Date();
+        return { hour: d.getHours(), minute: d.getMinutes(), weekday: "" };
+    }
+}
+
+function isAdminOnlineNow() {
+    const { hour } = getWibParts();
+    // 09:00 – 23:00 WIB
+    return hour >= 9 && hour < 23;
+}
+
+function updateAdminOnlineUI() {
+    const online = isAdminOnlineNow();
+    const textEl = document.getElementById("adminStatusText");
+    const dotEl = document.getElementById("adminStatusDot");
+    const footer = document.querySelector(".chat-menu-footer");
+    if (textEl) {
+        textEl.textContent = online ? "Online" : "Offline";
+        textEl.classList.toggle("online", online);
+        textEl.classList.toggle("offline", !online);
+    }
+    if (dotEl) {
+        dotEl.classList.toggle("offline", !online);
+        dotEl.classList.toggle("online", online);
+    }
+    if (footer) {
+        footer.innerHTML = online
+            ? '<i class="fa-solid fa-shield-halved"></i> Admin online · biasanya 5–15 menit'
+            : '<i class="fa-solid fa-moon"></i> Admin offline · jam 09.00–23.00 WIB';
+    }
+}
+
+function getVipCouponDef(code) {
+    const c = String(code || "").trim().toUpperCase();
+    if (!c || !VIP_COUPONS[c]) return null;
+    const def = VIP_COUPONS[c];
+    // backward compat: angka polos = percent saja
+    if (typeof def === "number") {
+        return { code: c, percent: def, maxUses: null, active: true };
+    }
+    return {
+        code: c,
+        percent: Number(def.percent) || 0,
+        maxUses: def.maxUses == null ? null : Number(def.maxUses),
+        active: def.active !== false
+    };
+}
+
+async function getVipCouponUsedCount(code) {
+    if (!gcDb || !gcReady) return 0;
+    try {
+        const snap = await gcDb.ref("ffkipas_coupons/" + code + "/used").once("value");
+        const n = Number(snap.val());
+        return Number.isFinite(n) && n > 0 ? n : 0;
+    } catch (e) {
+        return 0;
+    }
+}
+
+async function consumeVipCoupon(code) {
+    if (!code || !gcDb || !gcReady) return;
+    const def = getVipCouponDef(code);
+    if (!def || def.maxUses == null) {
+        // tetap catat pemakaian meski unlimited
+        try {
+            await gcDb.ref("ffkipas_coupons/" + code + "/used").transaction(cur => (Number(cur) || 0) + 1);
+        } catch (e) {}
+        return;
+    }
+    try {
+        await gcDb.ref("ffkipas_coupons/" + code + "/used").transaction(cur => {
+            const used = Number(cur) || 0;
+            if (used >= def.maxUses) return; // abort
+            return used + 1;
+        });
+    } catch (e) {
+        console.warn("coupon consume", e);
+    }
+}
+
+async function applyVipCoupon() {
+    const input = document.getElementById("vipCouponInput");
+    const msg = document.getElementById("vipCouponMsg");
+    const code = (input?.value || "").trim().toUpperCase();
+    if (!code) {
+        vipAppliedCoupon = null;
+        if (msg) { msg.style.display = "none"; msg.textContent = ""; }
+        updateVipPackUI();
+        return;
+    }
+    const def = getVipCouponDef(code);
+    if (!def || !def.percent || !def.active) {
+        vipAppliedCoupon = null;
+        if (msg) {
+            msg.style.display = "block";
+            msg.className = "vip-coupon-msg err";
+            msg.textContent = def && !def.active ? "Kupon nonaktif" : "Kode kupon tidak valid";
+        }
+        updateVipPackUI();
+        showToast("Kupon", def && !def.active ? "Kupon nonaktif" : "Kode tidak valid", "warning");
+        return;
+    }
+
+    // cek kuota
+    if (def.maxUses != null) {
+        const used = await getVipCouponUsedCount(code);
+        const sisa = def.maxUses - used;
+        if (sisa <= 0) {
+            vipAppliedCoupon = null;
+            if (msg) {
+                msg.style.display = "block";
+                msg.className = "vip-coupon-msg err";
+                msg.textContent = "Kuota kupon " + code + " sudah habis";
+            }
+            updateVipPackUI();
+            showToast("Kupon", "Kuota habis", "warning");
+            return;
+        }
+        vipAppliedCoupon = { code, percent: def.percent, maxUses: def.maxUses, sisa: sisa };
+        if (msg) {
+            msg.style.display = "block";
+            msg.className = "vip-coupon-msg ok";
+            msg.textContent = "Kupon " + code + " aktif · −" + def.percent + "% · sisa " + sisa + "/" + def.maxUses;
+        }
+        updateVipPackUI();
+        showToast("Kupon", "Diskon " + def.percent + "% · sisa " + sisa);
+        return;
+    }
+
+    vipAppliedCoupon = { code, percent: def.percent, maxUses: null };
+    if (msg) {
+        msg.style.display = "block";
+        msg.className = "vip-coupon-msg ok";
+        msg.textContent = "Kupon " + code + " aktif · diskon " + def.percent + "%";
+    }
+    updateVipPackUI();
+    showToast("Kupon", "Diskon " + def.percent + "% diterapkan");
+}
+
+function getVipDiscountedPrice(base) {
+    const p = Number(base) || 0;
+    if (!vipAppliedCoupon || !vipAppliedCoupon.percent) return p;
+    return Math.max(0, Math.round(p * (100 - vipAppliedCoupon.percent) / 100));
+}
+
 
 /* ===========================
 NOTIF SUARA (beda nada VIP vs GRUP) + DESKTOP
@@ -2130,9 +2231,16 @@ function getVipPackById(id) {
 
 function updateVipPackUI() {
     const pack = vipSelectedPack || VIP_PACKAGES[0];
-    if (vipPriceLabel) vipPriceLabel.textContent = Number(pack.price).toLocaleString("id-ID");
+    const finalPrice = getVipDiscountedPrice(pack.price);
+    if (vipPriceLabel) {
+        vipPriceLabel.textContent = Number(finalPrice).toLocaleString("id-ID");
+    }
     const sel = document.getElementById("vipPackSelectedLabel");
-    if (sel) sel.textContent = "Paket: " + pack.label + " · akses VIP penuh";
+    if (sel) {
+        let t = "Paket: " + pack.label + " · akses VIP penuh";
+        if (vipAppliedCoupon) t += " · −" + vipAppliedCoupon.percent + "%";
+        sel.textContent = t;
+    }
     document.querySelectorAll(".vip-pack-card").forEach(btn => {
         btn.classList.toggle("active", btn.getAttribute("data-id") === pack.id);
     });
@@ -2324,6 +2432,11 @@ function openVipOrderPopup() {
     vipPending = null;
     clearVipProof();
     vipSelectedPack = VIP_PACKAGES[0];
+    vipAppliedCoupon = null;
+    const cIn = document.getElementById("vipCouponInput");
+    const cMsg = document.getElementById("vipCouponMsg");
+    if (cIn) cIn.value = "";
+    if (cMsg) { cMsg.style.display = "none"; cMsg.textContent = ""; }
     updateVipPackUI();
     showVipStep("form");
     const nameEl = document.getElementById("vipNameInput");
@@ -2383,24 +2496,31 @@ if (vipContinueBtn) {
             return;
         }
         const pack = vipSelectedPack || VIP_PACKAGES[0];
+        const finalPrice = getVipDiscountedPrice(pack.price);
         const orderId = genVipOrderId();
         vipPending = {
             orderId,
             name,
             contact,
             note,
-            price: pack.price,
+            price: finalPrice,
+            originalPrice: pack.price,
+            coupon: vipAppliedCoupon ? vipAppliedCoupon.code : "",
+            couponPercent: vipAppliedCoupon ? vipAppliedCoupon.percent : 0,
             packId: pack.id,
             packLabel: pack.label,
             days: pack.days,
-            allAccess: !!pack.allAccess,
             product: VIP_PRODUCT + " · " + pack.label,
             createdAt: Date.now()
         };
         if (vipOrderIdLabel) vipOrderIdLabel.textContent = orderId;
-        if (vipPayAmount) vipPayAmount.textContent = formatRp(pack.price);
+        if (vipPayAmount) {
+            let payTxt = formatRp(finalPrice);
+            if (vipAppliedCoupon) payTxt += " (setelah kupon " + vipAppliedCoupon.code + ")";
+            vipPayAmount.textContent = payTxt;
+        }
         const payPack = document.getElementById("vipPayPackLabel");
-        if (payPack) payPack.textContent = pack.label + (pack.allAccess ? " (full VIP)" : "");
+        if (payPack) payPack.textContent = pack.label;
         clearVipProof();
         showVipStep("pay");
         if (vipPaidBtn) {
@@ -2433,7 +2553,9 @@ async function createVipOrderInFirebase(order) {
             packId: order.packId || "",
             packLabel: packLabel,
             days: order.days == null ? null : order.days,
-            allAccess: !!order.allAccess,
+            coupon: order.coupon || "",
+            couponPercent: order.couponPercent || 0,
+            originalPrice: order.originalPrice || order.price,
             status: "waiting_verification",
             proofImage: order.proofImage,
             hasProof: true,
@@ -2567,10 +2689,15 @@ if (vipPaidBtn) {
         vipPaidBtn.innerHTML = "Kirim Bukti & Buka Chat";
         clearVipProof();
         closeVipOrderPopup();
+        // kurangi kuota kupon (setelah order sukses)
+        if (order.coupon) {
+            try { await consumeVipCoupon(order.coupon); } catch (e) {}
+        }
         playVipNotifSound();
         showToast("Bukti terkirim", order.orderId + " · order masuk ke admin");
         openVipChat(order.orderId, order.name);
         vipPending = null;
+        vipAppliedCoupon = null;
     };
 }
 
@@ -3023,41 +3150,153 @@ function startVipAdminListener() {
     }
 }
 
+function orderMatchesAdminFilter(o, filter) {
+    const archived = !!(o.archived);
+    const step = statusToTrackStep(o.status);
+    if (filter === "archived") return archived;
+    // filter status hanya untuk order aktif (belum arsip)
+    if (archived) return false;
+    if (filter === "all") return true;
+    if (filter === "wait") return step === "wait";
+    if (filter === "process") return step === "process";
+    if (filter === "done") return step === "done";
+    return true;
+}
+
+async function setVipOrderArchived(orderId, archived) {
+    if (!orderId || !gcDb || !gcReady) return false;
+    if (!isCurrentUserAdmin()) {
+        showToast("Admin only", "Hanya admin", "warning");
+        return false;
+    }
+    try {
+        await gcDb.ref("ffkipas_vip_orders/" + orderId).update({
+            archived: !!archived,
+            archivedAt: archived ? Date.now() : null
+        });
+        showToast(archived ? "Diarsipkan" : "Dikembalikan", orderId);
+        return true;
+    } catch (e) {
+        console.error(e);
+        showToast("Gagal", "Tidak bisa ubah arsip", "error");
+        return false;
+    }
+}
+
+async function deleteVipOrderHard(orderId) {
+    if (!orderId || !gcDb || !gcReady) return false;
+    if (!isCurrentUserAdmin()) {
+        showToast("Admin only", "Hanya admin", "warning");
+        return false;
+    }
+    if (!confirm("Hapus permanen order " + orderId + "?\nChat privat ikut dihapus. Tidak bisa dibatalkan.")) {
+        return false;
+    }
+    try {
+        await gcDb.ref("ffkipas_vip_orders/" + orderId).remove();
+        await gcDb.ref("ffkipas_vip_chat/" + orderId).remove();
+        showToast("Dihapus", orderId);
+        return true;
+    } catch (e) {
+        console.error(e);
+        showToast("Gagal", "Tidak bisa hapus", "error");
+        return false;
+    }
+}
+
 async function renderVipOrdersList() {
     if (!vipOrdersList) return;
     const title = document.getElementById("vipListTitle");
     const desc = document.getElementById("vipListDesc");
     const joinBox = document.getElementById("vipJoinById");
     const newBtn = document.getElementById("vipNewOrderFromList");
+    const filterBar = document.getElementById("vipFilterBar");
     const admin = isCurrentUserAdmin();
 
     if (admin) {
         if (title) title.innerHTML = '<i class="fa-solid fa-crown"></i> Inbox Order VIP (Admin)';
-        if (desc) desc.textContent = "Semua order masuk otomatis. Klik untuk balas di chat privat.";
+        if (desc) desc.textContent = "Filter · arsip order selesai · salin ID/bukti.";
         if (joinBox) joinBox.style.display = "flex";
         if (newBtn) newBtn.style.display = "none";
+        if (filterBar) filterBar.style.display = "flex";
         vipOrdersList.innerHTML = '<div class="vip-orders-empty">Memuat order dari server...</div>';
         const list = await fetchAllVipOrdersFromFirebase();
         vipAdminOrdersCache = list;
+        const filtered = list.filter(o => orderMatchesAdminFilter(o, vipAdminFilter || "all"));
         if (!list.length) {
             vipOrdersList.innerHTML = '<div class="vip-orders-empty">Belum ada order VIP masuk.</div>';
             return;
         }
-        vipOrdersList.innerHTML = list.map(o => {
+        if (!filtered.length) {
+            vipOrdersList.innerHTML = '<div class="vip-orders-empty">Tidak ada order di filter ini.</div>';
+            return;
+        }
+        vipOrdersList.innerHTML = filtered.map(o => {
             const id = o.orderId || "";
             const st = statusLabel(o.status);
             const when = o.date || formatVipDate(o.createdAt || o.paidAt);
-            return `<div class="vip-order-item" data-id="${escapeHtml(id)}" data-name="${escapeHtml(o.name || "")}">
+            const proof = o.proofImage || "";
+            const isArchived = !!o.archived;
+            const step = statusToTrackStep(o.status);
+            const archiveBtn = isArchived
+                ? `<button type="button" class="voi-copy voi-restore" data-archive="0" data-id="${escapeHtml(id)}" title="Kembalikan ke inbox"><i class="fa-solid fa-box-open"></i> Pulih</button>
+                   <button type="button" class="voi-copy voi-delete" data-delete="${escapeHtml(id)}" title="Hapus permanen"><i class="fa-solid fa-trash"></i></button>`
+                : `<button type="button" class="voi-copy voi-archive" data-archive="1" data-id="${escapeHtml(id)}" title="Arsipkan"><i class="fa-solid fa-box-archive"></i> Arsip</button>`;
+            return `<div class="vip-order-item${isArchived ? " is-archived" : ""}" data-id="${escapeHtml(id)}" data-name="${escapeHtml(o.name || "")}">
                 <div class="voi-icon"><i class="fa-solid fa-crown"></i></div>
-                <div>
+                <div class="voi-body">
                     <strong>${escapeHtml(id)}</strong>
                     <span class="voi-meta">${escapeHtml(o.name || "-")} · ${escapeHtml(o.contact || "-")} · ${escapeHtml(o.packLabel || o.product || "-")} · ${formatRp(o.price || VIP_PRICE)}</span>
                     <span class="voi-meta">${escapeHtml(when)}</span>
-                    <span class="voi-status ${st.cls}">${st.text}</span>
+                    <span class="voi-status ${st.cls}">${st.text}${isArchived ? " · Arsip" : ""}</span>
+                    <div class="voi-actions">
+                        <button type="button" class="voi-copy" data-copy="${escapeHtml(id)}" title="Salin Order ID"><i class="fa-regular fa-copy"></i> ID</button>
+                        ${proof ? `<button type="button" class="voi-copy" data-copy="${escapeHtml(proof)}" title="Salin link bukti TF"><i class="fa-regular fa-image"></i> Bukti</button>
+                        <a class="voi-copy" href="${escapeHtml(proof)}" target="_blank" rel="noopener" title="Buka bukti"><i class="fa-solid fa-up-right-from-square"></i></a>` : ""}
+                        ${archiveBtn}
+                    </div>
                 </div>
             </div>`;
         }).join("");
+        // copy buttons must not open chat
+        vipOrdersList.querySelectorAll(".voi-copy[data-copy]").forEach(btn => {
+            btn.addEventListener("click", async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const val = btn.getAttribute("data-copy") || "";
+                const ok = await copyTextToClipboard(val);
+                if (ok) showToast("Tersalin", val.length > 40 ? val.slice(0, 36) + "…" : val);
+                else showToast("Gagal", "Tidak bisa salin", "error");
+            });
+        });
+        vipOrdersList.querySelectorAll("a.voi-copy").forEach(a => {
+            a.addEventListener("click", (e) => e.stopPropagation());
+        });
+        vipOrdersList.querySelectorAll("[data-archive]").forEach(btn => {
+            btn.addEventListener("click", async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const id = btn.getAttribute("data-id") || "";
+                const arch = btn.getAttribute("data-archive") === "1";
+                btn.disabled = true;
+                const ok = await setVipOrderArchived(id, arch);
+                btn.disabled = false;
+                if (ok) renderVipOrdersList();
+            });
+        });
+        vipOrdersList.querySelectorAll("[data-delete]").forEach(btn => {
+            btn.addEventListener("click", async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const id = btn.getAttribute("data-delete") || "";
+                btn.disabled = true;
+                const ok = await deleteVipOrderHard(id);
+                btn.disabled = false;
+                if (ok) renderVipOrdersList();
+            });
+        });
     } else {
+        if (filterBar) filterBar.style.display = "none";
         if (title) title.innerHTML = '<i class="fa-solid fa-crown"></i> Chat VIP Saya';
         if (desc) desc.textContent = "Setiap order punya ruang chat sendiri.";
         if (joinBox) joinBox.style.display = "flex";
@@ -3312,3 +3551,32 @@ if (vipBtnDone) {
     }
     window.addEventListener("load", () => setTimeout(tryStart, 1500));
 })();
+
+
+/* Filter inbox VIP admin */
+document.querySelectorAll(".vip-filter-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+        document.querySelectorAll(".vip-filter-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        vipAdminFilter = btn.getAttribute("data-filter") || "all";
+        renderVipOrdersList();
+    });
+});
+
+/* Kupon VIP */
+const vipCouponBtn = document.getElementById("vipCouponBtn");
+const vipCouponInput = document.getElementById("vipCouponInput");
+if (vipCouponBtn) vipCouponBtn.onclick = applyVipCoupon;
+if (vipCouponInput) {
+    vipCouponInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            applyVipCoupon();
+        }
+    });
+}
+
+/* Admin online status */
+updateAdminOnlineUI();
+setInterval(updateAdminOnlineUI, 60 * 1000);
+
