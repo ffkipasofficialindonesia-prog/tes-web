@@ -1,3 +1,41 @@
+/* GFF Latin — Free Fire official font */
+@font-face {
+  font-family: 'GFF Latin';
+  src: url('assets/fonts/GFF-Latin-Thin.woff2') format('woff2'),
+       url('assets/fonts/GFF-Latin-Thin.woff') format('woff'),
+       url('assets/fonts/GFF-Latin-Thin.ttf') format('truetype');
+  font-weight: 100;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'GFF Latin';
+  src: url('assets/fonts/GFF-Latin-Regular.woff2') format('woff2'),
+       url('assets/fonts/GFF-Latin-Regular.woff') format('woff'),
+       url('assets/fonts/GFF-Latin-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'GFF Latin';
+  src: url('assets/fonts/GFF-Latin-Medium.woff2') format('woff2'),
+       url('assets/fonts/GFF-Latin-Medium.woff') format('woff'),
+       url('assets/fonts/GFF-Latin-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'GFF Latin';
+  src: url('assets/fonts/GFF-Latin-Bold.woff2') format('woff2'),
+       url('assets/fonts/GFF-Latin-Bold.woff') format('woff'),
+       url('assets/fonts/GFF-Latin-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 /*====================================
 FFKIPAS BY MUHLIS — PREMIUM UI V4
 Neon Glass • Modern • Clean
@@ -18,9 +56,9 @@ Neon Glass • Modern • Clean
   --radius-sm: 14px;
   --shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
   --glow: 0 0 40px rgba(255, 123, 0, 0.25);
-  --font: "Outfit", system-ui, sans-serif;
-  --font-display: "Orbitron", "Oxanium", sans-serif;
-  --font-tech: "Oxanium", "Orbitron", sans-serif;
+  --font: "GFF Latin", "Outfit", system-ui, sans-serif;
+  --font-display: "GFF Latin", "Orbitron", "Oxanium", sans-serif;
+  --font-tech: "GFF Latin", "Oxanium", "Orbitron", sans-serif;
 }
 
 * {
