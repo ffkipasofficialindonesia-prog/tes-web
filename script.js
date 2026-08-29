@@ -570,31 +570,49 @@ const gameItems = {
     "FREE FIRE": {
         banner: "assets/banner/freefire.webp",
         uid: "Masukkan UID",
+        diamondIcon: "assets/diamond-crystal.png",
         items: [
-            { name: "💎70", price: 10000 },
-            { name: "💎140", price: 20000 },
-            { name: "💎355", price: 50000 },
-            { name: "💎720", price: 100000 }
+            { name: "70", price: 10000 },
+            { name: "140", price: 20000 },
+            { name: "210", price: 30000 },
+            { name: "355", price: 50000 },
+            { name: "425", price: 60000 },
+            { name: "500", price: 70000 },
+            { name: "720", price: 100000 },
+            { name: "1000", price: 140000 },
+            { name: "1450", price: 200000 },
+            { name: "2000", price: 270000 },
+            { name: "3640", price: 480000 },
+            { name: "7290", price: 950000 }
         ]
     },
     "MOBILE LEGENDS": {
         banner: "assets/banner/mlbb.webp",
         uid: "Masukkan User ID",
         items: [
-            { name: "💎86", price: 15000 },
-            { name: "💎172", price: 30000 },
-            { name: "💎257", price: 50000 },
-            { name: "💎706", price: 150000 }
+            { name: "86", price: 15000, icon: "assets/mlbb/d1.png" },
+            { name: "172", price: 30000, icon: "assets/mlbb/d2.png" },
+            { name: "257", price: 50000, icon: "assets/mlbb/d2.png" },
+            { name: "344", price: 65000, icon: "assets/mlbb/d3.png" },
+            { name: "429", price: 80000, icon: "assets/mlbb/d3.png" },
+            { name: "514", price: 95000, icon: "assets/mlbb/d4.png" },
+            { name: "706", price: 150000, icon: "assets/mlbb/d4.png" },
+            { name: "1050", price: 200000, icon: "assets/mlbb/d5.png" },
+            { name: "2195", price: 400000, icon: "assets/mlbb/d5.png" },
+            { name: "3688", price: 650000, icon: "assets/mlbb/d6.png" },
+            { name: "5532", price: 950000, icon: "assets/mlbb/d6.png" }
         ]
     },
     "PUBG MOBILE": {
         banner: "assets/banner/pubg.webp",
         uid: "Masukkan Character ID",
         items: [
-            { name: "60 UC", price: 16000 },
-            { name: "325 UC", price: 75000 },
-            { name: "660 UC", price: 149000 },
-            { name: "1800 UC", price: 390000 }
+            { name: "60", price: 16000, icon: "assets/pubg/uc60.png" },
+            { name: "325", price: 75000, icon: "assets/pubg/uc325.png" },
+            { name: "660", price: 149000, icon: "assets/pubg/uc660.png" },
+            { name: "1800", price: 390000, icon: "assets/pubg/uc3850.png" },
+            { name: "3850", price: 790000, icon: "assets/pubg/uc3850.png" },
+            { name: "8100", price: 1590000, icon: "assets/pubg/uc8100.png" }
         ]
     },
     "ROBLOX": {
@@ -633,10 +651,15 @@ document.addEventListener("DOMContentLoaded", () => {
         if (uidInput) uidInput.placeholder = data.uid;
 
         diamondGrid.innerHTML = "";
+        const defaultIcon = data.diamondIcon || null;
         data.items.forEach(item => {
+            const icon = item.icon || defaultIcon;
+            const label = icon
+                ? `<img class="diamond-icon" src="${icon}" alt=""><b>${item.name}</b>`
+                : `<b>${item.name}</b>`;
             diamondGrid.innerHTML += `
-                <div class="diamond-card" data-price="${item.price}">
-                    <b>${item.name}</b>
+                <div class="diamond-card" data-price="${item.price}" data-label="${item.name}">
+                    <div class="diamond-label">${label}</div>
                     <span>Rp${item.price.toLocaleString("id-ID")}</span>
                 </div>
             `;
@@ -661,7 +684,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 const price = Number(card.dataset.price);
                 if (totalPrice) totalPrice.textContent = "Rp" + price.toLocaleString("id-ID");
                 if (summaryPrice) summaryPrice.textContent = "Rp" + price.toLocaleString("id-ID");
-                if (summaryItem) summaryItem.textContent = card.querySelector("b").textContent;
+                if (summaryItem) {
+                    const nm = card.dataset.label || (card.querySelector("b") && card.querySelector("b").textContent) || "";
+                    summaryItem.textContent = nm;
+                }
             };
         });
     }
