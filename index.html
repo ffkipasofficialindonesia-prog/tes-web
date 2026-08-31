@@ -323,6 +323,7 @@
 </div>
 
 <div class="toast" id="toast">
+  <div class="toast-shine" aria-hidden="true"></div>
   <div class="toast-icon">✓</div>
   <div class="toast-body">
     <strong id="toastTitle">Berhasil</strong>
@@ -342,6 +343,26 @@
         <span class="close" id="closeDownloadHowTo">×</span>
         <div class="vip-badge"><i class="fa-solid fa-download"></i> Cara Download</div>
         <h2>Download FFKIPAS</h2>
+
+        <div class="tutorial-video-wrap">
+            <p class="tutorial-video-label">Video Tutorial</p>
+            <!-- Ganti file di assets/tutorial-download.mp4 ATAU isi data-youtube di bawah -->
+            <div class="tutorial-video-box" id="tutorialVideoBox"
+                 data-youtube="">
+                <video id="tutorialVideo"
+                    class="tutorial-video"
+                    controls
+                    playsinline
+                    preload="metadata"
+                    poster="assets/slider/download.png">
+                    <source src="assets/tutorial-download.mp4" type="video/mp4" />
+                    Browser kamu tidak mendukung video.
+                </video>
+                <!-- Kalau pakai YouTube: isi data-youtube="VIDEO_ID" di tutorialVideoBox, video di atas diganti iframe oleh script -->
+            </div>
+            <p class="tutorial-video-hint">Tonton dulu biar gak salah pasang</p>
+        </div>
+
         <ol class="vip-howto-steps">
             <li><strong>Pilih file</strong> — Inject FFKIPAS / LocalConfig / MT Manager.</li>
             <li><strong>Klik Download</strong> — ikuti link (sfile / MediaFire).</li>

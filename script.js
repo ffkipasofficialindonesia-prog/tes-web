@@ -3606,3 +3606,125 @@ if (vipCouponInput) {
 updateAdminOnlineUI();
 setInterval(updateAdminOnlineUI, 60 * 1000);
 
+
+
+/* Video tutorial — pause saat popup ditutup + optional YouTube */
+(function initTutorialVideo() {
+  const box = document.getElementById("tutorialVideoBox");
+  const video = document.getElementById("tutorialVideo");
+  const popup = document.getElementById("downloadHowToPopup");
+  if (!box) return;
+
+  const yt = (box.getAttribute("data-youtube") || "").trim();
+  if (yt) {
+    // Ganti <video> jadi iframe YouTube
+    box.innerHTML = `<iframe src="https://www.youtube.com/embed/${encodeURIComponent(yt)}?rel=0&modestbranding=1"
+      title="Tutorial Download FFKIPAS"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      allowfullscreen loading="lazy"></iframe>`;
+  }
+
+  function pauseTutorial() {
+    const v = document.getElementById("tutorialVideo");
+    if (v && !v.paused) {
+      try { v.pause(); } catch (e) {}
+    }
+    // stop youtube: reset src if iframe
+    const iframe = box.querySelector("iframe");
+    if (iframe && iframe.src) {
+      const src = iframe.src;
+      iframe.src = "";
+      iframe.src = src.replace(/[?&]autoplay=1/, "").replace(/&&/g, "&");
+    }
+  }
+
+  const closeBtn = document.getElementById("closeDownloadHowTo");
+  const okBtn = document.getElementById("downloadHowToCloseBtn");
+  if (closeBtn) closeBtn.addEventListener("click", pauseTutorial);
+  if (okBtn) okBtn.addEventListener("click", pauseTutorial);
+  if (popup) {
+    popup.addEventListener("click", (e) => {
+      if (e.target === popup) pauseTutorial();
+    });
+  }
+})();
+
+
+
+/* ===========================
+NOTIF TUTORIAL + SUARA (anime chime)
+Muncul 1x per session saat user baru masuk
+=========================== */
+function playAnimeNotifSound() {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    const ctx = playAnimeNotifSound._ctx || new AC();
+    playAnimeNotifSound._ctx = ctx;
+    if (ctx.state === "suspended") ctx.resume().catch(() => {});
+
+    const now = ctx.currentTime;
+    // Nada naik khas notif anime (C6 → E6 → G6)
+    const notes = [1046.5, 1318.5, 1568.0];
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      const t0 = now + i * 0.09;
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.exponentialRampToValueAtTime(0.22, t0 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.28);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(t0);
+      osc.stop(t0 + 0.3);
+    });
+  } catch (e) {
+    console.warn("notif sound", e);
+  }
+}
+
+function showTutorialHintNotif() {
+  const KEY = "ffkipas_tutorial_hint_shown";
+  try {
+    if (sessionStorage.getItem(KEY)) return;
+    sessionStorage.setItem(KEY, "1");
+  } catch (e) {}
+
+  // delay biar page load dulu, dan user gesture lebih mungkin (autoplay policy)
+  setTimeout(() => {
+    playAnimeNotifSound();
+    if (typeof showToast === "function") {
+      showToast(
+        "NOTIF TUTORIAL",
+        "UNTUK TUTORIAL PASANG FFKIPAS, KLIK TOMBOL CARA DOWNLOAD DI BAWAH TOMBOL DOWNLOAD.",
+        "success"
+      );
+    }
+  }, 1600);
+}
+
+(function bootTutorialHint() {
+  const run = () => showTutorialHintNotif();
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => setTimeout(run, 400));
+  } else {
+    setTimeout(run, 400);
+  }
+  // unlock audio setelah interaksi pertama (browser policy)
+  const unlock = () => {
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      const ctx = playAnimeNotifSound._ctx || new AC();
+      playAnimeNotifSound._ctx = ctx;
+      if (ctx.state === "suspended") ctx.resume();
+    } catch (e) {}
+    document.removeEventListener("click", unlock);
+    document.removeEventListener("touchstart", unlock);
+  };
+  document.addEventListener("click", unlock, { once: true, passive: true });
+  document.addEventListener("touchstart", unlock, { once: true, passive: true });
+})();
+
