@@ -4134,77 +4134,6 @@ button.chat-item {
 }
 
 
-/* ========== Info strip (pengumuman) ========== */
-.info-strip {
-  width: 92%;
-  max-width: 1180px;
-  margin: 0 auto 28px;
-  padding: 0;
-}
-.info-strip.hidden { display: none; }
-.info-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 14px 16px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-.info-icon {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 800;
-  font-style: italic;
-  color: #111;
-  background: #ffb100;
-}
-.info-body {
-  flex: 1;
-  min-width: 0;
-  text-align: left;
-}
-.info-body strong {
-  display: block;
-  font-size: 13px;
-  font-weight: 700;
-  color: #ffc107;
-  margin-bottom: 4px;
-}
-.info-body p {
-  margin: 0;
-  font-size: 12.5px;
-  line-height: 1.45;
-  color: #aaa;
-  font-weight: 500;
-}
-.info-close {
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: transparent;
-  color: #888;
-  font-size: 16px;
-  line-height: 1;
-  cursor: pointer;
-}
-.info-close:hover {
-  color: #fff;
-  border-color: rgba(255, 180, 0, 0.35);
-}
-@media (max-width: 480px) {
-  .info-strip { width: 92%; margin-bottom: 20px; }
-  .info-card { padding: 12px 12px; }
-}
-
 /* ========== Leaderboard ========== */
 #leaderboard {
   padding: 40px 6% 70px;
@@ -4290,16 +4219,4 @@ button.chat-item {
 }
 .gc-msg-row.is-bot .gc-msg-name {
   color: #ffc107 !important;
-}
-.gc-bot-tag {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 1px 6px;
-  border-radius: 6px;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.4px;
-  background: rgba(255, 180, 0, 0.25);
-  color: #ffc107;
-  vertical-align: middle;
 }

@@ -1359,7 +1359,7 @@ function renderMessages(list) {
 
         const msgId = m.id ? escapeHtml(m.id) : "";
         const badge = adminBadgeHtml(displayName);
-        return `<div class="gc-msg-row${(m.bot || (m.name === GC_BOT_NAME) || (m.name === "FFKIPAS BOT")) ? " is-bot" : ""}${me}" data-id="${msgId}">
+        return `<div class="gc-msg-row${(m.bot || m.name === "FFKIPAS BOT") ? " is-bot" : ""}${me}" data-id="${msgId}">
             ${avatarHtml(m)}
             <div class="gc-msg">
                 <div class="gc-msg-name">${escapeHtml(displayName)}${badge}</div>
@@ -3652,27 +3652,6 @@ setInterval(updateAdminOnlineUI, 60 * 1000);
   }
 })();
 
-/* ===========================
-PENGUMUMAN BAR
-=========================== */
-(function initAnnounce() {
-  const bar = document.getElementById("infoStrip") || document.getElementById("announceBar");
-  const btn = document.getElementById("announceClose");
-  if (!bar) return;
-  const KEY = "ffkipas_announce_closed_v2";
-  try {
-    if (sessionStorage.getItem(KEY)) {
-      bar.classList.add("hidden");
-      return;
-    }
-  } catch (e) {}
-  if (btn) {
-    btn.addEventListener("click", () => {
-      bar.classList.add("hidden");
-      try { sessionStorage.setItem(KEY, "1"); } catch (e) {}
-    });
-  }
-})();
 
 /* ===========================
 AUTO REPLY BOT (GRUP)
@@ -3692,12 +3671,12 @@ const GC_AUTO_REPLIES = [
     reply: "Order VIP: buka kartu FFKIPAS VIP → pilih paket → bayar QRIS → upload bukti TF. Setelah bukti masuk, chat privat ke admin otomatis terbuka."
   },
   {
-    keys: ["admin", "whatsapp", "wa", "telegram", "hubungi"],
+    keys: ["admin", "whatsapp", "telegram", "hubungi"],
     reply: "Chat admin: tombol chat kanan bawah → WhatsApp / Telegram / Saluran WA. Atau order VIP biar dapat room chat privat."
   },
   {
     keys: ["halo", "hai", "hello", "assalam"],
-    reply: "Halo! Tanya aja: harga, cara download, VIP, atau admin. Ketik kata kuncinya."
+    reply: "Halo member admin, untuk yang mau download ffkipas ada di localconfig ya."
   }
 ];
 let gcBotLast = 0;
