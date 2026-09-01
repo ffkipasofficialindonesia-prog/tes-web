@@ -469,6 +469,7 @@ function bumpDownloadCount(by = 1) {
         const base = (typeof cur === "number" && cur >= 0) ? cur : DOWNLOAD_BASE;
         return base + add;
     }).catch(() => {});
+    if (typeof trackDownloaderHit === "function") trackDownloaderHit();
 }
 
 // Fallback animasi lokal sebelum Firebase siap
@@ -1358,7 +1359,7 @@ function renderMessages(list) {
 
         const msgId = m.id ? escapeHtml(m.id) : "";
         const badge = adminBadgeHtml(displayName);
-        return `<div class="gc-msg-row${me}" data-id="${msgId}">
+        return `<div class="gc-msg-row${(m.bot || (m.name === GC_BOT_NAME) || (m.name === "FFKIPAS BOT")) ? " is-bot" : ""}${me}" data-id="${msgId}">
             ${avatarHtml(m)}
             <div class="gc-msg">
                 <div class="gc-msg-name">${escapeHtml(displayName)}${badge}</div>
@@ -1466,6 +1467,7 @@ function initGroupChat() {
         initSitePresence();
         // Total download realtime
         initDownloadStats();
+        if (typeof initLeaderboard === "function") initLeaderboard();
 
         // Re-klaim nama yang tersimpan di browser ini
         if (gcName) {
@@ -1690,6 +1692,7 @@ if (gcForm) {
             clearReply();
             touchChatName();
             scrollGcToBottom(false);
+            if (typeof maybeGroupAutoReply === "function") maybeGroupAutoReply(text);
         }).catch((err) => {
             console.error(err);
             showToast("Gagal", "Pesan tidak terkirim", "error");
@@ -3648,3 +3651,150 @@ setInterval(updateAdminOnlineUI, 60 * 1000);
     });
   }
 })();
+
+/* ===========================
+PENGUMUMAN BAR
+=========================== */
+(function initAnnounce() {
+  const bar = document.getElementById("infoStrip") || document.getElementById("announceBar");
+  const btn = document.getElementById("announceClose");
+  if (!bar) return;
+  const KEY = "ffkipas_announce_closed_v2";
+  try {
+    if (sessionStorage.getItem(KEY)) {
+      bar.classList.add("hidden");
+      return;
+    }
+  } catch (e) {}
+  if (btn) {
+    btn.addEventListener("click", () => {
+      bar.classList.add("hidden");
+      try { sessionStorage.setItem(KEY, "1"); } catch (e) {}
+    });
+  }
+})();
+
+/* ===========================
+AUTO REPLY BOT (GRUP)
+=========================== */
+const GC_BOT_NAME = "FFKIPAS BOT";
+const GC_AUTO_REPLIES = [
+  {
+    keys: ["harga", "price", "berapa", "bayar"],
+    reply: "Harga VIP cek di kartu FFKIPAS VIP (1–8 hari). Top up game nominalnya muncul pas pilih diamond/UC. Ada kupon? isi di form VIP."
+  },
+  {
+    keys: ["cara", "tutorial", "pasang", "install", "download"],
+    reply: "Cara pasang: klik tombol Cara Download di section Download → tonton video + ikuti langkah. Download file: klik 3x (iklan) sampai link terbuka."
+  },
+  {
+    keys: ["vip", "order vip", "beli vip"],
+    reply: "Order VIP: buka kartu FFKIPAS VIP → pilih paket → bayar QRIS → upload bukti TF. Setelah bukti masuk, chat privat ke admin otomatis terbuka."
+  },
+  {
+    keys: ["admin", "whatsapp", "wa", "telegram", "hubungi"],
+    reply: "Chat admin: tombol chat kanan bawah → WhatsApp / Telegram / Saluran WA. Atau order VIP biar dapat room chat privat."
+  },
+  {
+    keys: ["halo", "hai", "hello", "assalam"],
+    reply: "Halo! Tanya aja: harga, cara download, VIP, atau admin. Ketik kata kuncinya."
+  }
+];
+let gcBotLast = 0;
+
+function maybeGroupAutoReply(userText) {
+  if (!gcDb || !gcReady) return;
+  const raw = String(userText || "").trim();
+  if (!raw) return;
+  const t = " " + raw.toLowerCase() + " ";
+  const now = Date.now();
+  if (now - gcBotLast < 4000) return;
+
+  for (const rule of GC_AUTO_REPLIES) {
+    const hit = rule.keys.some(k => t.includes(String(k).toLowerCase()));
+    if (!hit) continue;
+    gcBotLast = now;
+    setTimeout(() => {
+      if (!gcDb || !gcReady) return;
+      gcDb.ref("ffkipas_chat").push({
+        name: GC_BOT_NAME,
+        text: rule.reply,
+        ts: Date.now(),
+        bot: true
+      }).catch(() => {});
+    }, 700);
+    break;
+  }
+}
+
+/* ===========================
+LEADERBOARD DOWNLOADER
+=========================== */
+function safeDownloaderKey(name) {
+  return String(name || "anonim")
+    .toLowerCase()
+    .replace(/[.#$\[\]\/]/g, "_")
+    .slice(0, 24) || "anonim";
+}
+
+function trackDownloaderHit() {
+  if (!gcDb || !gcReady) return;
+  let name = "";
+  try {
+    name = (localStorage.getItem("ff_chat_name") || "").trim();
+  } catch (e) {}
+  if (!name) name = "Anonim";
+  name = name.slice(0, 16);
+  const key = safeDownloaderKey(name);
+  const ref = gcDb.ref("ffkipas_stats/downloaders/" + key);
+  ref.transaction((cur) => {
+    if (!cur || typeof cur !== "object") {
+      return { name: name, count: 1, last: Date.now() };
+    }
+    return {
+      name: cur.name || name,
+      count: (Number(cur.count) || 0) + 1,
+      last: Date.now()
+    };
+  }).catch(() => {});
+}
+
+function renderLeaderboard(data) {
+  const box = document.getElementById("lbList");
+  if (!box) return;
+  const esc = (typeof escapeHtml === "function")
+    ? escapeHtml
+    : (s) => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const list = Object.keys(data || {}).map(k => {
+    const v = data[k] || {};
+    return {
+      name: v.name || k,
+      count: Number(v.count) || 0,
+      last: v.last || 0
+    };
+  }).filter(x => x.count > 0)
+    .sort((a, b) => b.count - a.count || b.last - a.last)
+    .slice(0, 10);
+
+  if (!list.length) {
+    box.innerHTML = '<div class="lb-empty">Belum ada data leaderboard.</div>';
+    return;
+  }
+  box.innerHTML = list.map((row, i) => {
+    const rank = i + 1;
+    const cls = rank === 1 ? "top1" : (rank === 2 ? "top2" : (rank === 3 ? "top3" : ""));
+    return `<div class="lb-row ${cls}">
+      <div class="lb-rank">${rank}</div>
+      <div class="lb-name">${esc(row.name)}</div>
+      <div class="lb-count">${row.count.toLocaleString("id-ID")} DL</div>
+    </div>`;
+  }).join("");
+}
+
+function initLeaderboard() {
+  if (!gcDb || !gcReady) return;
+  const ref = gcDb.ref("ffkipas_stats/downloaders");
+  ref.on("value", (snap) => {
+    renderLeaderboard(snap.val() || {});
+  });
+}

@@ -13,10 +13,16 @@
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800;900&family=Oxanium:wght@500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
-<link href="style.css?v=20260812n" rel="stylesheet"/>
+<link href="style.css?v=20260901f" rel="stylesheet"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 </head>
 <body>
+
+
+</div>
+    <button type="button" class="announce-close" id="announceClose" title="Tutup">×</button>
+  </div>
+</div>
 
 <header class="header">
     <a href="#" class="logo">
@@ -106,6 +112,17 @@
         preload="metadata"
         poster="assets/slider/download.png">
     </video>
+</section>
+
+<section class="info-strip" id="infoStrip">
+  <div class="info-card">
+    <div class="info-icon">i</div>
+    <div class="info-body">
+      <strong>Pengumuman</strong>
+      <p id="announceText">Download tools terbaru, top up game, dan order VIP tersedia. Butuh bantuan? buka chat grup atau tombol Cara Download.</p>
+    </div>
+    <button type="button" class="info-close" id="announceClose" title="Tutup">×</button>
+  </div>
 </section>
 
 <section id="download">
@@ -210,6 +227,15 @@
     <div class="stat">
         <h1>100%</h1>
         <p>SERVER UPTIME</p>
+    </div>
+</section>
+
+
+<section id="leaderboard">
+    <h2>TOP DOWNLOADER</h2>
+    <p class="lb-desc">Ranking user yang paling sering download (nama dari chat grup / Anonim)</p>
+    <div class="lb-list" id="lbList">
+        <div class="lb-empty">Belum ada data leaderboard.</div>
     </div>
 </section>
 
@@ -644,6 +670,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
-<script src="script.js?v=20260812n"></script>
+<script src="script.js?v=20260901f"></script>
 </body>
 </html>
