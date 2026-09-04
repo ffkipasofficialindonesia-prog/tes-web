@@ -822,7 +822,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 price: summaryPrice.textContent,
                 date: new Date().toLocaleString("id-ID")
             });
+            if (history.length > 2) history.length = 2;
             localStorage.setItem("trxHistory", JSON.stringify(history));
+            if (typeof renderTrxHistory === "function") renderTrxHistory();
 
             processing.classList.add("active");
             const progressBar = document.getElementById("progressBar");
@@ -856,15 +858,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 const status = document.getElementById("invoiceStatus");
                 if (status) {
-                    status.innerHTML = "⏳ Proses Pembayaran";
-                    status.style.color = "#ffd43b";
+                    status.className = "inv-stamp stamp-process";
+                    status.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Proses';
                     setTimeout(() => {
-                        status.innerHTML = "💲 Pembayaran Berhasil";
-                        status.style.color = "#00d26a";
+                        status.className = "inv-stamp stamp-paid";
+                        status.innerHTML = '<i class="fa-solid fa-coins"></i> Lunas';
                     }, 3000);
                     setTimeout(() => {
-                        status.innerHTML = "💎 Berhasil Dikirim";
-                        status.style.color = "#00bfff";
+                        status.className = "inv-stamp stamp-done";
+                        status.innerHTML = '<i class="fa-solid fa-gem"></i> Terkirim';
                     }, 5000);
                 }
             }, 2500);
@@ -908,27 +910,103 @@ Total : ${document.getElementById("invoicePrice").textContent}`;
 });
 
 /* ===========================
-HISTORY
+HISTORY — Premium cards
 =========================== */
-const historyList = document.getElementById("historyList");
-if (historyList) {
-    const data = JSON.parse(localStorage.getItem("trxHistory") || "[]");
-    historyList.innerHTML = "";
-    data.forEach(item => {
-        historyList.innerHTML += `
-            <div class="history-card">
-                <b>${item.invoice}</b>
-                🎮 ${item.game}<br>
-                👤 ${item.uid}<br>
-                💎 ${item.item}<br>
-                💳 ${item.pay}<br>
-                💰 ${item.price}<br>
-                🕒 ${item.date}
+function historyGameIcon(game) {
+    const g = String(game || "").toUpperCase();
+    if (g.includes("FREE FIRE") || g.includes("FF")) return "fa-fire";
+    if (g.includes("MOBILE") || g.includes("ML")) return "fa-mobile-screen";
+    if (g.includes("PUBG")) return "fa-crosshairs";
+    if (g.includes("ROBLOX")) return "fa-cube";
+    if (g.includes("VIP") || g.includes("FFKIPAS")) return "fa-crown";
+    return "fa-receipt";
+}
+
+function renderTrxHistory() {
+    const historyList = document.getElementById("historyList");
+    if (!historyList) return;
+    const esc = (typeof escapeHtml === "function")
+        ? escapeHtml
+        : (s) => String(s == null ? "" : s)
+            .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    let data = [];
+    try {
+        data = JSON.parse(localStorage.getItem("trxHistory") || "[]") || [];
+    } catch (e) {
+        data = [];
+    }
+    if (Array.isArray(data) && data.length > 2) data = data.slice(0, 2);
+    if (!Array.isArray(data) || !data.length) {
+        historyList.innerHTML = `
+            <div class="history-empty">
+                <i class="fa-solid fa-receipt"></i>
+                <strong>Belum ada transaksi</strong>
+                <span>Top up atau order VIP akan muncul di sini.</span>
+            </div>`;
+        return;
+    }
+    historyList.innerHTML = data.map((item) => {
+        const inv = esc(item.invoice || "-");
+        const game = esc(item.game || "-");
+        const uid = esc(item.uid || "-");
+        const itm = esc(item.item || "-");
+        const pay = esc(item.pay || "-");
+        const price = esc(item.price || "-");
+        const date = esc(item.date || "-");
+        const icon = historyGameIcon(item.game);
+        return `
+        <article class="history-card" data-inv="${inv}">
+            <div class="hc-top">
+                <div class="hc-icon"><i class="fa-solid ${icon}"></i></div>
+                <div class="hc-head">
+                    <strong class="hc-inv">${inv}</strong>
+                    <span class="hc-date"><i class="fa-regular fa-clock"></i> ${date}</span>
+                </div>
+                <span class="hc-badge">Selesai</span>
             </div>
-        `;
+            <div class="hc-grid">
+                <div class="hc-cell"><span>Game</span><b>${game}</b></div>
+                <div class="hc-cell"><span>UID / ID</span><b>${uid}</b></div>
+                <div class="hc-cell"><span>Nominal</span><b>${itm}</b></div>
+                <div class="hc-cell"><span>Pembayaran</span><b>${pay}</b></div>
+            </div>
+            <div class="hc-foot">
+                <div class="hc-price">${price}</div>
+                <button type="button" class="hc-copy" data-copy="${inv}" title="Salin invoice">
+                    <i class="fa-regular fa-copy"></i> Salin ID
+                </button>
+            </div>
+        </article>`;
+    }).join("");
+
+    historyList.querySelectorAll(".hc-copy").forEach((btn) => {
+        btn.addEventListener("click", async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const val = btn.getAttribute("data-copy") || "";
+            let ok = false;
+            if (typeof copyTextToClipboard === "function") {
+                ok = await copyTextToClipboard(val);
+            } else {
+                try {
+                    await navigator.clipboard.writeText(val);
+                    ok = true;
+                } catch (err) {}
+            }
+            if (ok) {
+                const old = btn.innerHTML;
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> Tersalin';
+                if (typeof showToast === "function") showToast("Tersalin", val);
+                setTimeout(() => { btn.innerHTML = old; }, 1400);
+            } else if (typeof showToast === "function") {
+                showToast("Gagal", "Tidak bisa salin", "error");
+            }
+        });
     });
 }
 
+renderTrxHistory();
 
 /* ===========================
 SLIDER (SINGLE VIDEO)
@@ -2711,7 +2789,9 @@ if (vipPaidBtn) {
                 price: formatRp(order.price),
                 date: new Date().toLocaleString("id-ID")
             });
+            if (history.length > 2) history.length = 2;
             localStorage.setItem("trxHistory", JSON.stringify(history));
+            if (typeof renderTrxHistory === "function") renderTrxHistory();
         } catch (e) {}
 
         vipPaidBtn.disabled = false;

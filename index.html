@@ -13,7 +13,7 @@
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800;900&family=Oxanium:wght@500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
-<link href="style.css?v=20260905wa" rel="stylesheet"/>
+<link href="style.css?v=20260905align" rel="stylesheet"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 </head>
 <body>
@@ -304,30 +304,54 @@
     </div>
 </div>
 
-<!-- INVOICE -->
+<!-- INVOICE — Receipt style -->
 <div class="invoice" id="invoice">
     <div class="invoice-box">
-        <div class="invoice-header">
-            <img src="assets/logo.png" class="invoice-brand" alt=""/>
-            <div>
-                <h2>FFKIPAS</h2>
-                <p>Premium Top Up Center</p>
+        <div class="inv-paper">
+            <div class="inv-top">
+                <img src="assets/logo.png" class="invoice-brand" alt="FFKIPAS"/>
+                <div class="inv-brand-text">
+                    <h2>FFKIPAS</h2>
+                    <p>Official Top Up Receipt</p>
+                </div>
+                <span class="inv-stamp" id="invoiceStatus">Menunggu</span>
             </div>
+            <div class="inv-meta">
+                <div><span>No. Invoice</span><strong id="invoiceNumber">-</strong></div>
+                <div><span>Tanggal</span><strong id="invoiceDate">-</strong></div>
+            </div>
+            <img id="invoiceLogo" src="" class="invoice-logo" alt="" style="display:none"/>
+            <div class="inv-divider"><span>DETAIL PESANAN</span></div>
+            <div class="inv-rows">
+                <div class="inv-row">
+                    <span><i class="fa-solid fa-gamepad inv-ico ico-game"></i> Game</span>
+                    <b id="invoiceGame">-</b>
+                </div>
+                <div class="inv-row">
+                    <span><i class="fa-solid fa-id-card inv-ico ico-uid"></i> UID / ID</span>
+                    <b id="invoiceUid">-</b>
+                </div>
+                <div class="inv-row">
+                    <span><i class="fa-solid fa-gem inv-ico ico-diamond"></i> Nominal</span>
+                    <b id="invoiceItem">-</b>
+                </div>
+                <div class="inv-row">
+                    <span><i class="fa-solid fa-wallet inv-ico ico-pay"></i> Pembayaran</span>
+                    <b id="invoicePay">-</b>
+                </div>
+            </div>
+            <div class="inv-total">
+                <span><i class="fa-solid fa-coins"></i> Total Bayar</span>
+                <strong id="invoicePrice">Rp0</strong>
+            </div>
+            <p class="inv-note">Simpan invoice ini sebagai bukti transaksi.</p>
+            <div class="inv-barcode" aria-hidden="true"></div>
         </div>
-        <hr class="invoice-line">
-        <h2>Pesanan Berhasil</h2>
-        <img id="invoiceLogo" src="" class="invoice-logo" alt=""/>
-        <p><b>No. Invoice :</b> <span id="invoiceNumber">-</span></p>
-        <p><b>Tanggal :</b> <span id="invoiceDate">-</span></p>
-        <p>Status : <span id="invoiceStatus">🟡 Menunggu Pembayaran</span></p>
-        <p><b>Game :</b> <span id="invoiceGame">-</span></p>
-        <p><b>UID :</b> <span id="invoiceUid">-</span></p>
-        <p><b>Nominal :</b> <span id="invoiceItem">-</span></p>
-        <p><b>Pembayaran :</b> <span id="invoicePay">-</span></p>
-        <p><b>Total :</b> <span id="invoicePrice">Rp0</span></p>
-        <button id="copyInvoice">📋 Salin Invoice</button>
-        <button id="downloadInvoice">📥 Download Invoice</button>
-        <button id="closeInvoice">Tutup</button>
+        <div class="inv-actions">
+            <button type="button" id="copyInvoice"><i class="fa-regular fa-copy"></i> Salin</button>
+            <button type="button" id="downloadInvoice"><i class="fa-solid fa-download"></i> Unduh</button>
+            <button type="button" id="closeInvoice" class="inv-close">Tutup</button>
+        </div>
     </div>
 </div>
 
@@ -660,6 +684,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
-<script src="script.js?v=20260905wa"></script>
+<script src="script.js?v=20260905align"></script>
 </body>
 </html>
