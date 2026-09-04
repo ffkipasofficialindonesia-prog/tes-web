@@ -4220,3 +4220,62 @@ button.chat-item {
 .gc-msg-row.is-bot .gc-msg-name {
   color: #ffc107 !important;
 }
+
+
+/* Notif Saluran WA — bar bawah, simpel */
+.wa-bar {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 10040;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 10px 10px 10px 14px;
+  border-radius: 12px;
+  background: rgba(12, 12, 12, 0.95);
+  border: 1px solid rgba(37, 211, 102, 0.4);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  opacity: 0;
+  transform: translateY(10px);
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.wa-bar.show {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.wa-bar a {
+  flex: 1;
+  min-width: 0;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  font-family: inherit;
+  line-height: 1.3;
+}
+.wa-bar a:hover { color: #25d366; }
+.wa-bar button {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.06);
+  color: #aaa;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+.wa-bar button:hover {
+  color: #fff;
+  background: rgba(255,255,255,0.12);
+}
+@media (max-width: 480px) {
+  .wa-bar { bottom: 78px; } /* di atas FAB chat */
+}

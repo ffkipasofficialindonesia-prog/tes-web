@@ -3777,3 +3777,32 @@ function initLeaderboard() {
     renderLeaderboard(snap.val() || {});
   });
 }
+
+
+/* Notif Saluran WA — simpel, 1x session, bawah */
+(function () {
+  var KEY = "ffkipas_wa_bar";
+  try { if (sessionStorage.getItem(KEY)) return; } catch (e) {}
+  function run() {
+    var box = document.getElementById("waJoinNotif");
+    if (!box) return;
+    box.hidden = false;
+    void box.offsetWidth;
+    box.classList.add("show");
+    function hide() {
+      box.classList.remove("show");
+      setTimeout(function () { box.hidden = true; }, 250);
+      try { sessionStorage.setItem(KEY, "1"); } catch (e) {}
+    }
+    var c = document.getElementById("waJoinClose");
+    var a = document.getElementById("waJoinBtn");
+    if (c) c.onclick = hide;
+    if (a) a.addEventListener("click", function () {
+      try { sessionStorage.setItem(KEY, "1"); } catch (e) {}
+    });
+    setTimeout(function () {
+      if (box.classList.contains("show")) hide();
+    }, 10000);
+  }
+  setTimeout(run, 2000);
+})();
