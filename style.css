@@ -4170,8 +4170,10 @@ button.chat-item {
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 .lb-row.top1 {
-  border-color: rgba(255, 180, 0, 0.45);
-  background: rgba(255, 152, 0, 0.1);
+  position: relative;
+  border-color: rgba(255, 180, 0, 0.55);
+  background: linear-gradient(135deg, rgba(255, 152, 0, 0.16), rgba(255, 123, 0, 0.06));
+  box-shadow: 0 0 24px rgba(255, 123, 0, 0.15);
 }
 .lb-rank {
   width: 28px;
@@ -4186,7 +4188,33 @@ button.chat-item {
   color: #ccc;
   flex-shrink: 0;
 }
-.lb-row.top1 .lb-rank { background: linear-gradient(145deg, #ffb100, #ff7b00); color: #111; }
+.lb-row.top1 .lb-rank {
+  background: linear-gradient(145deg, #ffd54f, #ff7b00);
+  color: #1a0e00;
+  font-size: 13px;
+  box-shadow: 0 4px 12px rgba(255, 123, 0, 0.4);
+}
+.lb-name .lb-title {
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #ffc107;
+  margin-bottom: 1px;
+  text-shadow: 0 0 10px rgba(255, 193, 7, 0.4);
+}
+.lb-crown {
+  flex-shrink: 0;
+  color: #ffc107;
+  font-size: 16px;
+  filter: drop-shadow(0 0 8px rgba(255, 193, 7, 0.55));
+  animation: lbCrownPulse 2s ease-in-out infinite;
+}
+@keyframes lbCrownPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.12); opacity: 0.85; }
+}
 .lb-row.top2 .lb-rank { background: rgba(200, 200, 210, 0.25); color: #eee; }
 .lb-row.top3 .lb-rank { background: rgba(180, 120, 60, 0.35); color: #ffd7a0; }
 .lb-name {

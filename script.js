@@ -3753,7 +3753,7 @@ function renderLeaderboard(data) {
     };
   }).filter(x => x.count > 0)
     .sort((a, b) => b.count - a.count || b.last - a.last)
-    .slice(0, 10);
+    .slice(0, 6);
 
   if (!list.length) {
     box.innerHTML = '<div class="lb-empty">Belum ada data leaderboard.</div>';
@@ -3762,10 +3762,17 @@ function renderLeaderboard(data) {
   box.innerHTML = list.map((row, i) => {
     const rank = i + 1;
     const cls = rank === 1 ? "top1" : (rank === 2 ? "top2" : (rank === 3 ? "top3" : ""));
+    const crown = rank === 1
+      ? '<span class="lb-crown" title="Top 1"><i class="fa-solid fa-crown"></i></span>'
+      : '';
+    const nameHtml = rank === 1
+      ? `<div class="lb-name"><span class="lb-title">Raja Download</span>${esc(row.name)}</div>`
+      : `<div class="lb-name">${esc(row.name)}</div>`;
     return `<div class="lb-row ${cls}">
-      <div class="lb-rank">${rank}</div>
-      <div class="lb-name">${esc(row.name)}</div>
+      <div class="lb-rank">${rank === 1 ? '<i class="fa-solid fa-crown"></i>' : rank}</div>
+      ${nameHtml}
       <div class="lb-count">${row.count.toLocaleString("id-ID")} DL</div>
+      ${crown}
     </div>`;
   }).join("");
 }
