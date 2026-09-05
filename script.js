@@ -658,10 +658,37 @@ document.addEventListener("DOMContentLoaded", () => {
             const label = icon
                 ? `<img class="diamond-icon" src="${icon}" alt=""><b>${item.name}</b>`
                 : `<b>${item.name}</b>`;
+            const n = Number(item.name) || 0;
+            let badge = "";
+            let extraCls = "";
+            // highlight paket populer / best value
+            if (game === "FREE FIRE" && (n === 720 || n === 1450)) {
+              badge = '<span class="dm-badge hot">Hot</span>';
+              extraCls = " dm-hot";
+            } else if (game === "FREE FIRE" && (n === 355 || n === 2000)) {
+              badge = '<span class="dm-badge best">Best</span>';
+              extraCls = " dm-best";
+            } else if (game === "MOBILE LEGENDS" && (n === 514 || n === 1050)) {
+              badge = '<span class="dm-badge hot">Hot</span>';
+              extraCls = " dm-hot";
+            } else if (game === "MOBILE LEGENDS" && (n === 344 || n === 2195)) {
+              badge = '<span class="dm-badge best">Best</span>';
+              extraCls = " dm-best";
+            } else if (game === "PUBG MOBILE" && (n === 660 || n === 1800)) {
+              badge = '<span class="dm-badge hot">Hot</span>';
+              extraCls = " dm-hot";
+            } else if (game === "PUBG MOBILE" && n === 325) {
+              badge = '<span class="dm-badge best">Best</span>';
+              extraCls = " dm-best";
+            } else if (game === "ROBLOX" && n >= 800) {
+              badge = '<span class="dm-badge best">Best</span>';
+              extraCls = " dm-best";
+            }
             diamondGrid.innerHTML += `
-                <div class="diamond-card" data-price="${item.price}" data-label="${item.name}">
+                <div class="diamond-card${extraCls}" data-price="${item.price}" data-label="${item.name}">
+                    ${badge}
                     <div class="diamond-label">${label}</div>
-                    <span>Rp${item.price.toLocaleString("id-ID")}</span>
+                    <span class="diamond-price"><small>Rp</small>${item.price.toLocaleString("id-ID")}</span>
                 </div>
             `;
         });
@@ -829,30 +856,49 @@ document.addEventListener("DOMContentLoaded", () => {
             processing.classList.add("active");
             const progressBar = document.getElementById("progressBar");
             const progressText = document.getElementById("progressText");
-            let progress = 0;
+                        let progress = 0;
+            const bar = document.getElementById("progressBar");
+            const text = document.getElementById("progressText");
+            const loadingTitle = document.getElementById("loadingTitle");
+            const loadingDesc = document.getElementById("loadingDesc");
+            const procSteps = document.getElementById("procSteps");
+
+            function setProcStep(n) {
+                if (!procSteps) return;
+                procSteps.querySelectorAll(".proc-step").forEach((el) => {
+                    const s = Number(el.getAttribute("data-s") || 0);
+                    el.classList.remove("active", "done");
+                    if (s < n) el.classList.add("done");
+                    else if (s === n) el.classList.add("active");
+                });
+            }
+            setProcStep(1);
+            if (loadingTitle) loadingTitle.textContent = "Mengecek UID...";
+            if (loadingDesc) loadingDesc.textContent = "Sedang memverifikasi akun.";
+
             const timer = setInterval(() => {
-                progress += 2;
-                progressBar.style.width = progress + "%";
-                progressText.innerHTML = progress + "%";
+                progress += 3;
+                if (progress > 100) progress = 100;
+                if (bar) bar.style.width = progress + "%";
+                if (text) text.textContent = progress + "%";
                 if (progress >= 100) clearInterval(timer);
-            }, 50);
-
-            loadingTitle.innerHTML = "🔍 Mengecek UID...";
-            loadingDesc.innerHTML = "Sedang memverifikasi akun.";
-
-            setTimeout(() => popup.classList.remove("active"), 100);
+            }, 55);
 
             setTimeout(() => {
-                loadingTitle.innerHTML = "💳 Menyiapkan Pembayaran...";
-                loadingDesc.innerHTML = "Menghubungkan ke server.";
-            }, 700);
+                setProcStep(2);
+                if (loadingTitle) loadingTitle.textContent = "Memproses Pembayaran...";
+                if (loadingDesc) loadingDesc.textContent = "Menghubungkan gateway.";
+            }, 900);
 
             setTimeout(() => {
-                loadingTitle.innerHTML = "📦 Membuat Invoice...";
-                loadingDesc.innerHTML = "Hampir selesai.";
-            }, 1400);
+                setProcStep(3);
+                if (loadingTitle) loadingTitle.textContent = "Membuat Invoice...";
+                if (loadingDesc) loadingDesc.textContent = "Hampir selesai.";
+            }, 1700);
 
             setTimeout(() => {
+                if (bar) bar.style.width = "100%";
+                if (text) text.textContent = "100%";
                 processing.classList.remove("active");
                 if (invoice) invoice.classList.add("active");
 
@@ -863,13 +909,13 @@ document.addEventListener("DOMContentLoaded", () => {
                     setTimeout(() => {
                         status.className = "inv-stamp stamp-paid";
                         status.innerHTML = '<i class="fa-solid fa-coins"></i> Lunas';
-                    }, 3000);
+                    }, 2800);
                     setTimeout(() => {
                         status.className = "inv-stamp stamp-done";
                         status.innerHTML = '<i class="fa-solid fa-gem"></i> Terkirim';
-                    }, 5000);
+                    }, 4800);
                 }
-            }, 2500);
+            }, 2800);
         };
     }
 

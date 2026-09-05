@@ -13,7 +13,7 @@
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800;900&family=Oxanium:wght@500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
-<link href="style.css?v=20260905align" rel="stylesheet"/>
+<link href="style.css?v=20260906proc" rel="stylesheet"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 </head>
 <body>
@@ -294,11 +294,20 @@
 <!-- PROCESSING -->
 <div class="processing" id="processing">
     <div class="processing-box">
-        <div class="loader-circle"></div>
+        <div class="proc-loader">
+            <div class="proc-ring proc-ring-1"></div>
+            <div class="proc-ring proc-ring-2"></div>
+            <div class="proc-core"><i class="fa-solid fa-bolt"></i></div>
+        </div>
         <h2 id="loadingTitle">Memproses Pesanan...</h2>
         <p id="loadingDesc">Mohon tunggu sebentar.</p>
+        <div class="proc-steps" id="procSteps">
+            <span class="proc-step active" data-s="1">Cek UID</span>
+            <span class="proc-step" data-s="2">Bayar</span>
+            <span class="proc-step" data-s="3">Invoice</span>
+        </div>
         <div class="progress">
-            <div id="progressBar"></div>
+            <div id="progressBar"><span class="progress-shine"></span></div>
         </div>
         <p id="progressText">0%</p>
     </div>
@@ -684,6 +693,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
-<script src="script.js?v=20260905align"></script>
+<script src="script.js?v=20260906proc"></script>
 </body>
 </html>
